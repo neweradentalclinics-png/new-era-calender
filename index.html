@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEW ERA DENTAL CENTER</title>
+    
+    <!-- تحميل مكتبات React -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- تحميل Tailwind للتصميم -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- إعداد ألوان Tailwind المخصصة للذهبي الملكي -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gold: {
+                            400: '#FBBF24',
+                            500: '#F59E0B',
+                            600: '#D97706',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- تحميل مكتبات Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <!-- خط القاهرة -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #FDFCFB; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #F59E0B; border-radius: 10px; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useCallback, useRef } = React;
+
+        // 1. إعدادات قاعدة بياناتك
+        const firebaseConfig = {
+            apiKey: "AIzaSyDQ17UevaMBy2aVYxsrLNpdQCvn92uSKi0",
+            authDomain: "new-era-dental-center.firebaseapp.com",
+            projectId: "new-era-dental-center",
+            storageBucket: "new-era-dental-center.firebasestorage.app",
+            messagingSenderId: "11521109321",
+            appId: "1:11521109321:web:49e24509d937ff3e20be98"
+        };
+
+        // 2. تهيئة Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        const MASTER_CODE = "1111";
+
+        // --- أيقونات مدمجة ---
+        const IconDashboard = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>;
+        const IconUsers = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>;
+        const IconCalendar = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>;
+        const IconBuilding = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>;
+        const IconWallet = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg>;
+        const IconCog = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>;
+        const IconLock = () => <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>;
+        const IconTrash = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>;
+        const IconEdit = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>;
+        const IconMenu = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>;
+        const IconX = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+        const IconClock = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
+        const IconPhone = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>;
+
+        // 3. التطبيق الرئيسي
+        function App() {
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
+            const [currentUserData, setCurrentUserData] = useState(null);
+            const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [selectedBranchFilter, setSelectedBranchFilter] = useState('all');
+            
+            const [branches, setBranches] = useState([]);
+            const [staff, setStaff] = useState([]);
+            const [patients, setPatients] = useState([]);
+            const [appointments, setAppointments] = useState([]);
+            const [payments, setPayments] = useState([]);
+            const [notification, setNotification] = useState(null);
+
+            useEffect(() => {
+                auth.signInAnonymously().catch(err => console.error("برجاء تفعيل Anonymous Auth في Firebase", err));
+                
+                const u1 = db.collection('branches').onSnapshot(s => setBranches(s.docs.map(d => ({id: d.id, ...d.data()}))));
+                const u2 = db.collection('staff_members').onSnapshot(s => setStaff(s.docs.map(d => ({id: d.id, ...d.data()}))));
+                const u3 = db.collection('patients').onSnapshot(s => setPatients(s.docs.map(d => ({id: d.id, ...d.data()}))));
+                const u4 = db.collection('appointments').onSnapshot(s => setAppointments(s.docs.map(d => ({id: d.id, ...d.data()}))));
+                const u5 = db.collection('payments').onSnapshot(s => setPayments(s.docs.map(d => ({id: d.id, ...d.data()}))));
+
+                return () => { u1(); u2(); u3(); u4(); u5(); };
+            }, []);
+
+            const filteredData = useMemo(() => {
+                const branchId = currentUserData?.role === 'employee' ? currentUserData.branchId : selectedBranchFilter;
+                const filter = (i) => branchId === 'all' || i.branchId === branchId;
+                return {
+                    patients: patients.filter(filter),
+                    appointments: appointments.filter(filter),
+                    payments: payments.filter(filter),
+                    branches: branches
+                };
+            }, [patients, appointments, payments, branches, currentUserData, selectedBranchFilter]);
+
+            const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
+
+            const handleLogin = (code) => {
+                if (code === MASTER_CODE) {
+                    setCurrentUserData({ name: 'المدير العام', role: 'admin', branchId: 'all' });
+                    setIsLoggedIn(true);
+                } else {
+                    const found = staff.find(s => s.code === code.trim());
+                    if (found) {
+                        setCurrentUserData(found);
+                        setIsLoggedIn(true);
+                        if (found.role === 'employee') {
+                            setSelectedBranchFilter(found.branchId);
+                            setActiveTab('appointments');
+                        }
+                    } else { alert("كود الدخول غير صحيح أو غير مسجل!"); }
+                }
+            };
+
+            if (!isLoggedIn) return <LoginView onLogin={handleLogin} />;
+
+            return (
+                <div className="flex h-screen overflow-hidden text-gray-800 bg-[#FDFCFB]">
+                    {/* Sidebar */}
+                    <div className={`fixed inset-y-0 right-0 z-50 bg-white border-l border-gold-400 shadow-2xl transition-transform duration-300 transform ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} w-72 h-full flex flex-col`}>
+                        <div className="p-8 border-b border-gray-100 flex justify-between items-center relative">
+                            <div className="w-full flex justify-center">
+                                <img src="https://i.ibb.co/qLw7Tcqv/logo-Dr-shahenda-original.png" alt="Logo" className="max-h-16" />
+                            </div>
+                            <button onClick={() => setIsSidebarOpen(false)} className="absolute left-4 p-2 text-gray-400 bg-gray-50 rounded-lg hover:text-gold-500 lg:hidden"><IconX /></button>
+                        </div>
+                        <nav className="flex-1 p-6 space-y-2">
+                            {currentUserData.role === 'admin' && <SidebarItem icon={<IconDashboard/>} label="لوحة التحكم" active={activeTab === 'dashboard'} onClick={() => {setActiveTab('dashboard'); setIsSidebarOpen(false);}} />}
+                            {currentUserData.role === 'admin' && <SidebarItem icon={<IconBuilding/>} label="إدارة الفروع" active={activeTab === 'branches'} onClick={() => {setActiveTab('branches'); setIsSidebarOpen(false);}} />}
+                            <SidebarItem icon={<IconUsers/>} label="سجل المرضى" active={activeTab === 'patients'} onClick={() => {setActiveTab('patients'); setIsSidebarOpen(false);}} />
+                            <SidebarItem icon={<IconCalendar/>} label="المواعيد" active={activeTab === 'appointments'} onClick={() => {setActiveTab('appointments'); setIsSidebarOpen(false);}} />
+                            <SidebarItem icon={<IconWallet/>} label="الماليات" active={activeTab === 'finance'} onClick={() => {setActiveTab('finance'); setIsSidebarOpen(false);}} />
+                            {currentUserData.role === 'admin' && <SidebarItem icon={<IconCog/>} label="الموظفين" active={activeTab === 'staff'} onClick={() => {setActiveTab('staff'); setIsSidebarOpen(false);}} />}
+                        </nav>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="flex-1 flex flex-col h-full w-full">
+                        <header className="h-20 bg-white/80 border-b border-gray-200 px-8 flex items-center justify-between z-40 shadow-sm">
+                            <div className="flex items-center gap-6">
+                                <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-gray-700 hover:text-gold-500 rounded-lg transition-colors"><IconMenu /></button>
+                                <div className="hidden md:block">
+                                    <img src="https://i.ibb.co/qLw7Tcqv/logo-Dr-shahenda-original.png" alt="Logo" className="h-10" />
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                {currentUserData.role === 'admin' && (
+                                    <select value={selectedBranchFilter} onChange={(e) => setSelectedBranchFilter(e.target.value)} className="bg-white border border-gray-200 text-sm font-bold p-2 rounded-xl outline-none cursor-pointer focus:border-gold-500">
+                                        <option value="all">كل الفروع</option>
+                                        {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                    </select>
+                                )}
+                                <div className="text-left hidden md:block border-r border-gray-200 pr-4">
+                                    <p className="text-xs font-black text-gray-800">{currentUserData.name}</p>
+                                    <p className="text-[10px] text-gold-500 font-bold uppercase">{currentUserData.role === 'admin' ? 'مدير عام' : 'موظف فرع'}</p>
+                                </div>
+                                <button onClick={() => setIsLoggedIn(false)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg font-bold text-sm transition-colors border border-transparent hover:border-red-100">تسجيل خروج</button>
+                            </div>
+                        </header>
+
+                        <div className="flex-1 p-4 md:p-8 overflow-y-auto w-full relative">
+                            {notification && <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[100] bg-emerald-500 text-white px-8 py-3 rounded-2xl shadow-2xl font-bold flex items-center gap-2 animate-fade-in"><CheckCircle2 size={20}/> {notification}</div>}
+                            
+                            {activeTab === 'dashboard' && <Dashboard data={filteredData} onNav={(tab) => {setActiveTab(tab); setIsSidebarOpen(false);}} />}
+                            {activeTab === 'branches' && <Branches branches={branches} onNotify={notify} />}
+                            {activeTab === 'patients' && <Patients patients={filteredData.patients} branches={branches} role={currentUserData.role} branchId={currentUserData.branchId} onNotify={notify} />}
+                            {activeTab === 'appointments' && <Appointments apps={filteredData.appointments} patients={filteredData.patients} branches={branches} role={currentUserData.role} branchId={currentUserData.branchId} onNotify={notify} />}
+                            {activeTab === 'finance' && <Finance payments={filteredData.payments} branches={branches} role={currentUserData.role} branchId={currentUserData.branchId} onNotify={notify} />}
+                            {activeTab === 'staff' && <Staff staff={staff} branches={branches} onNotify={notify} />}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- واجهة تسجيل الدخول ---
+        function LoginView({ onLogin }) {
+            const [code, setCode] = useState(['', '', '', '']);
+            const inputRefs = useRef([]);
+
+            const handleChange = (index, value) => {
+                if (!/^[0-9]*$/.test(value)) return;
+                const newCode = [...code];
+                newCode[index] = value.slice(-1);
+                setCode(newCode);
+                if (value && index < 3) {
+                    inputRefs.current[index + 1].focus();
+                }
+            };
+
+            const handleKeyDown = (index, e) => {
+                if (e.key === 'Backspace' && !code[index] && index > 0) {
+                    inputRefs.current[index - 1].focus();
+                } else if (e.key === 'Enter') {
+                    handleSubmit();
+                }
+            };
+
+            const handleSubmit = () => {
+                const fullCode = code.join('');
+                if(fullCode.length === 4) onLogin(fullCode);
+                else alert("برجاء إدخال 4 أرقام");
+            };
+
+            return (
+                <div className="h-screen bg-[#050505] flex items-center justify-center p-6 text-center w-full relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-gold-600/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2"></div>
+                    <div className="absolute bottom-0 left-0 w-96 h-96 bg-gold-600/10 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2"></div>
+                    
+                    <div className="w-full max-w-md bg-[#111111] p-10 rounded-[40px] border border-white/5 shadow-2xl relative z-10 flex flex-col items-center">
+                        <img src="https://i.ibb.co/qLw7Tcqv/logo-Dr-shahenda-original.png" alt="Logo" className="w-52 mb-8 drop-shadow-[0_0_15px_rgba(245,158,11,0.2)]" />
+                        
+                        <p className="text-gray-400 text-sm mb-6 font-bold tracking-widest">أدخـل الكــود الخـاص بـك</p>
+                        
+                        <div className="flex gap-4 mb-10" dir="ltr">
+                            {[0, 1, 2, 3].map((index) => (
+                                <input
+                                    key={index}
+                                    ref={el => inputRefs.current[index] = el}
+                                    type="password"
+                                    inputMode="numeric"
+                                    value={code[index]}
+                                    onChange={(e) => handleChange(index, e.target.value)}
+                                    onKeyDown={(e) => handleKeyDown(index, e)}
+                                    className="w-16 h-16 bg-black/50 border-2 border-white/10 rounded-2xl text-center text-3xl font-bold text-gold-500 focus:border-gold-500 outline-none transition-all shadow-inner"
+                                />
+                            ))}
+                        </div>
+                        
+                        <button onClick={handleSubmit} className="w-full bg-gradient-to-r from-gold-600 to-gold-400 text-black font-black py-4 rounded-2xl hover:scale-[1.02] transition-all text-xl shadow-lg shadow-gold-500/20">تسجيــل الدخـول</button>
+                    </div>
+                </div>
+            );
+        }
+
+        const CheckCircle2 = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>;
+
+        function SidebarItem({ icon, label, active, onClick }) {
+            return (
+                <button onClick={onClick} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${active ? 'bg-gold-500 text-white shadow-md shadow-gold-500/30' : 'text-gray-500 hover:bg-gray-50 hover:text-gold-600'}`}>
+                    <span className={active ? 'text-white' : 'text-gray-400'}>{icon}</span>
+                    <span className="font-bold text-sm">{label}</span>
+                </button>
+            );
+        }
+
+        // --- الأقسام ---
+
+        function Dashboard({ data, onNav }) {
+            const stats = [
+                { label: 'سجل المرضى', val: data.patients.length, icon: <IconUsers/>, tab: 'patients' },
+                { label: 'المواعيد القادمة', val: data.appointments.length, icon: <IconCalendar/>, tab: 'appointments' },
+                { label: 'إجمالي التوريدات', val: data.payments.reduce((a,b) => a+Number(b.amount||0),0) + ' EGP', icon: <IconWallet/>, tab: 'finance' }
+            ];
+            return (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
+                    {stats.map((s, i) => (
+                        <div key={i} onClick={() => onNav(s.tab)} className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] cursor-pointer hover:-translate-y-2 transition-transform flex items-center gap-6 group">
+                            <div className="w-16 h-16 rounded-2xl bg-gray-50 text-gold-500 flex items-center justify-center group-hover:bg-gold-500 group-hover:text-white transition-colors">{s.icon}</div>
+                            <div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{s.label}</p><p className="text-2xl font-black text-gray-800">{s.val}</p></div>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        function Branches({ branches, onNotify }) {
+            const [modal, setModal] = useState(false);
+            const save = (e) => {
+                e.preventDefault();
+                const data = { name: e.target.name.value, phone: e.target.phone.value };
+                if (modal.mode === 'edit') db.collection('branches').doc(modal.data.id).update(data);
+                else db.collection('branches').add(data);
+                onNotify(modal.mode === 'edit' ? 'تم التعديل بنجاح' : 'تم إضافة الفرع بنجاح');
+                setModal(false);
+            };
+            return (
+                <div className="space-y-6 w-full animate-fade-in">
+                    <div className="flex justify-between items-center"><h3 className="text-xl font-black text-gray-800">الفروع</h3><button onClick={()=>setModal({mode:'add'})} className="bg-gold-500 text-white px-6 py-2 rounded-2xl font-bold shadow-md shadow-gold-500/20 hover:bg-gold-600 transition-colors">+ فرع جديد</button></div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {branches.map(b => (
+                            <div key={b.id} className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative group">
+                                <div className="absolute top-4 left-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => setModal({mode:'edit', data:b})} className="p-2 text-gold-500 bg-gold-50 rounded-xl hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
+                                    <button onClick={() => {if(confirm('حذف الفرع؟')) db.collection('branches').doc(b.id).delete()}} className="p-2 text-red-500 bg-red-50 rounded-xl hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
+                                </div>
+                                <div className="text-gold-500 mb-4 bg-gray-50 w-14 h-14 rounded-2xl flex items-center justify-center"><IconBuilding/></div>
+                                <h4 className="text-xl font-black text-gray-800 mb-2">{b.name}</h4>
+                                <p className="text-sm font-bold text-gray-500 flex items-center gap-2"> {b.phone}</p>
+                            </div>
+                        ))}
+                    </div>
+                    {modal && <Modal title={modal.mode === 'edit' ? "تعديل الفرع" : "إضافة فرع جديد"} onClose={()=>setModal(false)}>
+                        <form onSubmit={save} className="space-y-4">
+                            <Input name="name" label="اسم الفرع" defaultValue={modal.data?.name || ''} required/>
+                            <Input name="phone" label="رقم الهاتف" defaultValue={modal.data?.phone || ''}/>
+                            <button className="w-full bg-gold-500 text-white py-4 rounded-2xl font-black shadow-lg shadow-gold-500/30">حفظ البيانات</button>
+                        </form>
+                    </Modal>}
+                </div>
+            );
+        }
+
+        function Patients({ patients, branches, role, branchId, onNotify }) {
+            const [modal, setModal] = useState(false);
+            const save = (e) => {
+                e.preventDefault();
+                const data = { 
+                    fileNo: e.target.fileNo.value, name: e.target.name.value, phone: e.target.phone.value, 
+                    service: e.target.service.value, branchId: role === 'employee' ? branchId : e.target.branchId.value 
+                };
+                if(modal.mode === 'edit') db.collection('patients').doc(modal.data.id).update(data);
+                else db.collection('patients').add(data);
+                onNotify(modal.mode === 'edit' ? 'تم التعديل بنجاح' : 'تم إضافة المريض بنجاح');
+                setModal(false);
+            };
+            return (
+                <div className="space-y-6 w-full animate-fade-in">
+                    <div className="flex justify-between items-center"><h3 className="text-xl font-black text-gray-800">سجل المرضى</h3><button onClick={()=>setModal({mode:'add'})} className="bg-gold-500 text-white px-6 py-2 rounded-2xl font-bold shadow-md shadow-gold-500/20 hover:bg-gold-600 transition-colors">+ مريض جديد</button></div>
+                    <div className="bg-white rounded-[40px] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden overflow-x-auto w-full">
+                        <table className="w-full text-right text-sm min-w-[600px]">
+                            <thead className="bg-gray-50 text-gray-500 font-black tracking-widest uppercase"><tr><th className="p-5">ملف</th><th className="p-5">الاسم</th><th className="p-5">الهاتف</th><th className="p-5 text-center">إجراءات</th></tr></thead>
+                            <tbody className="divide-y divide-gray-100">{patients.map(p => (
+                                <tr key={p.id} className="hover:bg-gray-50/50 group transition-colors">
+                                    <td className="p-5 font-bold text-gold-600">#{p.fileNo}</td>
+                                    <td className="p-5 font-bold text-gray-800">{p.name}</td>
+                                    <td className="p-5 text-gray-500" dir="ltr">{p.phone}</td>
+                                    <td className="p-5 text-center">
+                                        <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => setModal({mode:'edit', data:p})} className="p-2 text-gold-500 bg-gold-50 rounded-xl hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
+                                            <button onClick={() => {if(confirm('حذف المريض؟')) db.collection('patients').doc(p.id).delete()}} className="p-2 text-red-500 bg-red-50 rounded-xl hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}</tbody>
+                        </table>
+                    </div>
+                    {modal && <Modal title={modal.mode==='edit'?"تعديل بيانات المريض":"تسجيل مريض جديد"} onClose={()=>setModal(false)}>
+                        <form onSubmit={save} className="space-y-4">
+                            <Input name="fileNo" label="رقم الملف" defaultValue={modal.data?.fileNo || ''} required/>
+                            <Input name="name" label="الاسم" defaultValue={modal.data?.name || ''} required/>
+                            <Input name="phone" label="الهاتف" defaultValue={modal.data?.phone || ''} required/>
+                            <Input name="service" label="الخدمة (اختياري)" defaultValue={modal.data?.service || ''}/>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">الفرع</label>
+                                <select name="branchId" defaultValue={modal.data?.branchId || branchId} disabled={role === 'employee'} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-200 outline-none font-bold text-gray-800 focus:border-gold-500">
+                                    {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                </select>
+                            </div>
+                            <button className="w-full bg-gold-500 text-white py-4 rounded-2xl font-black shadow-lg shadow-gold-500/30">حفظ المريض</button>
+                        </form>
+                    </Modal>}
+                </div>
+            );
+        }
+
+        // --- المواعيد  ---
+        function Appointments({ apps, patients, branches, role, branchId, onNotify }) {
+            const [modal, setModal] = useState(false);
+            const [viewMode, setViewMode] = useState('daily'); // daily, weekly, all
+            const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+            const save = (e) => {
+                e.preventDefault();
+                const data = { 
+                    patientName: e.target.pName.value, phone: e.target.phone.value, date: e.target.date.value, time: e.target.time.value, 
+                    service: e.target.service.value, branchId: role === 'employee' ? branchId : e.target.branchId.value 
+                };
+                if(modal.mode === 'edit') db.collection('appointments').doc(modal.data.id).update(data);
+                else db.collection('appointments').add(data);
+                onNotify(modal.mode === 'edit' ? 'تم تعديل الموعد' : 'تم حجز الموعد');
+                setModal(false);
+            };
+
+            // تصفية المواعيد حسب التقويم
+            const filteredApps = useMemo(() => {
+                let filtered = [...apps];
+                // ترتيب مبدئي
+                filtered.sort((a,b) => {
+                    if (a.date === b.date) return a.time.localeCompare(b.time);
+                    return a.date.localeCompare(b.date);
+                });
+
+                if (viewMode === 'daily') {
+                    filtered = filtered.filter(a => a.date === selectedDate);
+                } else if (viewMode === 'weekly') {
+                    const today = new Date(selectedDate);
+                    const nextWeek = new Date(today);
+                    nextWeek.setDate(today.getDate() + 7);
+                    
+                    filtered = filtered.filter(a => {
+                        const appDate = new Date(a.date);
+                        return appDate >= today && appDate <= nextWeek;
+                    });
+                }
+                return filtered;
+            }, [apps, viewMode, selectedDate]);
+
+            return (
+                <div className="space-y-6 w-full animate-fade-in">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <h3 className="text-xl font-black text-gray-800">المواعيد</h3>
+                        
+                        {/* أزرار التحكم في التقويم */}
+                        <div className="flex bg-gray-100 p-1 rounded-2xl">
+                            <button onClick={() => setViewMode('daily')} className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${viewMode==='daily' ? 'bg-white shadow-sm text-gold-600' : 'text-gray-500'}`}>يومي</button>
+                            <button onClick={() => setViewMode('weekly')} className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${viewMode==='weekly' ? 'bg-white shadow-sm text-gold-600' : 'text-gray-500'}`}>أسبوعي</button>
+                            <button onClick={() => setViewMode('all')} className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${viewMode==='all' ? 'bg-white shadow-sm text-gold-600' : 'text-gray-500'}`}>الكل</button>
+                        </div>
+                        
+                        {(viewMode === 'daily' || viewMode === 'weekly') && (
+                            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="bg-white border border-gray-200 text-sm font-bold p-2 rounded-xl outline-none text-gray-700" />
+                        )}
+
+                        <button onClick={()=>setModal({mode:'add'})} className="bg-gold-500 text-white px-6 py-2 rounded-2xl font-bold shadow-md shadow-gold-500/20 hover:bg-gold-600 transition-colors">+ حجز موعد</button>
+                    </div>
+
+                    {filteredApps.length === 0 ? (
+                        <div className="bg-white p-10 rounded-[30px] border border-gray-100 text-center text-gray-400 font-bold">لا توجد حجوزات في هذه الفترة.</div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{filteredApps.map(a => (
+                            <div key={a.id} className="bg-white p-6 rounded-[35px] border-r-4 border-gold-500 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] group relative">
+                                <div className="absolute top-4 left-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => setModal({mode:'edit', data:a})} className="p-2 text-gold-500 bg-gold-50 rounded-xl hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
+                                    <button onClick={() => {if(confirm('إلغاء الحجز؟')) db.collection('appointments').doc(a.id).delete()}} className="p-2 text-red-500 bg-red-50 rounded-xl hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
+                                </div>
+                                <h5 className="font-black text-gray-800 text-lg mb-1">{a.patientName}</h5>
+                                <p className="text-[10px] text-gray-500 font-bold mb-3 flex items-center gap-1"><IconPhone/> {a.phone}</p>
+                                <p className="text-[10px] text-gray-400 font-bold mb-4">{branches.find(b=>b.id===a.branchId)?.name}</p>
+                                <div className="flex gap-2">
+                                    <div className="text-xs font-bold text-gray-600 bg-gray-50 p-2 rounded-xl flex items-center gap-1"><IconCalendar/> {a.date}</div>
+                                    <div className="text-xs font-bold text-gray-600 bg-gray-50 p-2 rounded-xl flex items-center gap-1"><IconClock/> {a.time}</div>
+                                </div>
+                            </div>
+                        ))}</div>
+                    )}
+
+                    {modal && <Modal title={modal.mode==='edit'?"تعديل الموعد":"حجز موعد جديد"} onClose={()=>setModal(false)}>
+                        <form onSubmit={save} className="space-y-4">
+                            <Input name="pName" label="اسم المريض" defaultValue={modal.data?.patientName || ''} required />
+                            <Input name="phone" label="رقم الموبايل" defaultValue={modal.data?.phone || ''} required />
+                            
+                            <div className="grid grid-cols-2 gap-4"><Input name="date" label="التاريخ" type="date" defaultValue={modal.data?.date || selectedDate} required/><Input name="time" label="الوقت" type="time" defaultValue={modal.data?.time || ''} required/></div>
+                            <Input name="service" label="الخدمة (اختياري)" defaultValue={modal.data?.service || ''}/>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest">الفرع</label>
+                                <select name="branchId" defaultValue={modal.data?.branchId || branchId} disabled={role === 'employee'} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-200 outline-none font-bold text-gray-800 focus:border-gold-500">
+                                    {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                </select>
+                            </div>
+                            <button className="w-full bg-gold-500 text-white py-4 rounded-2xl font-black shadow-lg shadow-gold-500/30">حفظ الموعد</button>
+                        </form>
+                    </Modal>}
+                </div>
+            );
+        }
+
+        // --- توريدات الفروع (المالية) ---
+        function Finance({ payments, branches, role, branchId, onNotify }) {
+            const [modal, setModal] = useState(false);
+            const total = payments.reduce((a,b)=>a+Number(b.amount||0),0);
+            const save = (e) => {
+                e.preventDefault();
+                db.collection('payments').add({ 
+                    amount: e.target.amt.value, 
+                    date: e.target.dt.value, 
+                    branchId: role === 'employee' ? branchId : e.target.bId.value 
+                });
+                onNotify('تم تسجيل التوريد اليومي');
+                setModal(false);
+            };
+            return (
+                <div className="space-y-8 w-full animate-fade-in">
+                    <div className="bg-gradient-to-r from-gold-600 to-gold-400 p-8 md:p-10 rounded-[50px] text-white shadow-xl shadow-gold-500/20 flex flex-wrap justify-between items-center gap-4 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                        <div className="relative z-10"><p className="text-gold-100 text-xs font-bold mb-2 uppercase">إجمالي إيرادات {role === 'admin' ? 'الفروع' : 'الفرع'}</p><h2 className="text-4xl md:text-5xl font-black">{total} EGP</h2></div>
+                        <button onClick={()=>setModal(true)} className="relative z-10 bg-white text-gold-600 px-6 py-3 rounded-2xl font-black shadow-lg hover:scale-105 transition-transform">+ تسجيل توريد يومي</button>
+                    </div>
+                    <div className="bg-white p-4 md:p-8 rounded-[40px] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-4">
+                        <h4 className="font-black text-gray-800 mb-6">سجل التوريدات</h4>
+                        {payments.length === 0 && <p className="text-gray-400 text-sm font-bold text-center">لا توجد توريدات مسجلة.</p>}
+                        {payments.sort((a,b)=>new Date(b.date) - new Date(a.date)).map(p=>(
+                            <div key={p.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-[30px] border border-transparent group relative hover:bg-gray-100 transition-colors">
+                                <button onClick={() => {if(confirm('حذف التوريد؟')) db.collection('payments').doc(p.id).delete()}} className="absolute top-2 left-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"><IconTrash/></button>
+                                <div><p className="font-black text-gray-800">توريد فرع {branches.find(b=>b.id===p.branchId)?.name}</p><p className="text-[10px] font-bold text-gray-400 mt-1">{p.date}</p></div>
+                                <div className="text-left"><p className="text-xl font-black text-emerald-500">+{p.amount} ج</p></div>
+                            </div>
+                        ))}
+                    </div>
+                    {modal && <Modal title="تسجيل إيراد الفرع" onClose={()=>setModal(false)}>
+                        <form onSubmit={save} className="space-y-4">
+                            <Input name="amt" label="إجمالي المبلغ المُورد" type="number" required/>
+                            <Input name="dt" label="تاريخ التوريد" type="date" required defaultValue={new Date().toISOString().split('T')[0]}/>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">الفرع المورد</label>
+                                <select name="bId" defaultValue={branchId} disabled={role === 'employee'} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-200 outline-none font-bold text-gray-800 focus:border-gold-500">
+                                    {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                </select>
+                            </div>
+                            <button className="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black shadow-lg shadow-emerald-500/30">حفظ التوريد</button>
+                        </form>
+                    </Modal>}
+                </div>
+            );
+        }
+
+        // --- الموظفين (إلغاء خانة الصلاحية) ---
+        function Staff({ staff, branches, onNotify }) {
+            const [modal, setModal] = useState(false);
+            const save = (e) => {
+                e.preventDefault();
+                const branchId = e.target.branchId.value;
+                const role = branchId === 'all' ? 'admin' : 'employee'; // تحديد الصلاحية تلقائياً من الفرع
+                
+                const data = { 
+                    name: e.target.name.value, code: e.target.code.value, 
+                    role: role, branchId: branchId 
+                };
+                if (modal.mode === 'edit') db.collection('staff_members').doc(modal.data.id).update(data);
+                else db.collection('staff_members').add(data);
+                onNotify(modal.mode === 'edit' ? 'تم التعديل' : 'تم إضافة الموظف');
+                setModal(false);
+            };
+            return (
+                <div className="space-y-6 w-full animate-fade-in">
+                    <div className="flex justify-between items-center"><h3 className="text-xl font-black text-gray-800">إدارة الموظفين</h3><button onClick={()=>setModal({mode:'add'})} className="bg-gold-500 text-white px-6 py-2 rounded-2xl font-bold shadow-md shadow-gold-500/20 hover:bg-gold-600 transition-colors">+ إضافة موظف</button></div>
+                    <div className="bg-white rounded-[40px] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden overflow-x-auto w-full">
+                        <table className="w-full text-right text-sm min-w-[500px]">
+                            <thead className="bg-gray-50 text-gray-500 font-black tracking-widest uppercase"><tr><th className="p-5">الاسم</th><th className="p-5">الكود</th><th className="p-5">الفرع (الصلاحية)</th><th className="p-5 text-center">إجراءات</th></tr></thead>
+                            <tbody className="divide-y divide-gray-100">{staff.map(s => (
+                                <tr key={s.id} className="hover:bg-gray-50/50 group transition-colors">
+                                    <td className="p-5 font-bold text-gray-800">{s.name}</td>
+                                    <td className="p-5 font-mono font-bold text-gray-500 tracking-[0.2em]">{s.code}</td>
+                                    <td className="p-5 text-gray-500 font-bold">{s.branchId === 'all' ? <span className="text-gold-600">مدير عام (كل الفروع)</span> : branches.find(b=>b.id===s.branchId)?.name}</td>
+                                    <td className="p-5 text-center">
+                                        <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => setModal({mode:'edit', data:s})} className="p-2 text-gold-500 bg-gold-50 rounded-xl hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
+                                            <button onClick={() => {if(confirm('حذف الموظف؟')) db.collection('staff_members').doc(s.id).delete()}} className="p-2 text-red-500 bg-red-50 rounded-xl hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}</tbody>
+                        </table>
+                    </div>
+                    {modal && <Modal title={modal.mode==='edit'?"تعديل بيانات الموظف":"إضافة موظف جديد"} onClose={()=>setModal(false)}>
+                        <form onSubmit={save} className="space-y-4">
+                            <Input name="name" label="الاسم" defaultValue={modal.data?.name || ''} required/>
+                            <Input name="code" label="الكود السري (للدخول)" maxLength="4" defaultValue={modal.data?.code || ''} required/>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">تحديد فرع الموظف</label>
+                                <select name="branchId" defaultValue={modal.data?.branchId || 'all'} className="w-full bg-gray-50 p-4 rounded-2xl border border-gray-200 outline-none font-bold text-gray-800 focus:border-gold-500">
+                                    <option value="all">مدير عام (رؤية كل الفروع)</option>
+                                    {branches.map(b => <option key={b.id} value={b.id}>موظف فرع: {b.name}</option>)}
+                                </select>
+                            </div>
+                            <button className="w-full bg-gold-500 text-white py-4 rounded-2xl font-black shadow-lg shadow-gold-500/30">حفظ الموظف</button>
+                        </form>
+                    </Modal>}
+                </div>
+            );
+        }
+
+        // --- Utils ---
+        function Modal({ title, children, onClose }) {
+            return (
+                <div className="fixed inset-0 bg-gray-950/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white w-full max-w-md rounded-[40px] shadow-2xl overflow-hidden">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <h3 className="text-xl font-black text-gray-800">{title}</h3>
+                            <button type="button" onClick={onClose} className="p-2 text-gray-400 hover:text-gold-500 transition-colors"><IconX/></button>
+                        </div>
+                        <div className="p-6">{children}</div>
+                    </div>
+                </div>
+            );
+        }
+
+        function Input({ label, ...props }) {
+            return (
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mr-1">{label}</label>
+                    <input {...props} className="w-full bg-gray-50 border border-gray-200 focus:border-gold-500 p-4 rounded-2xl outline-none font-bold text-gray-800 transition-colors" />
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
