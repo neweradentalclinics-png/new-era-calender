@@ -49,6 +49,9 @@
         .calendar-cell.today { background-color: #fef3c7; color: #b45309; font-weight: 900; border: 2px solid #f59e0b; }
         .dot { height: 6px; width: 6px; background-color: #F59E0B; border-radius: 50%; margin-top: 4px; }
         .modal-layer { z-index: 99999 !important; }
+        
+        /* تأثيرات Checkbox */
+        input[type="checkbox"] { accent-color: #F59E0B; width: 16px; height: 16px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -57,7 +60,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // 1. Firebase Config
+        // 1. Firebase Config (New Era)
         const firebaseConfig = {
             apiKey: "AIzaSyDQ17UevaMBy2aVYxsrLNpdQCvn92uSKi0",
             authDomain: "new-era-dental-center.firebaseapp.com",
@@ -71,7 +74,6 @@
         const db = firebase.firestore();
         const auth = firebase.auth();
         
-        // تغيير الباسورد حسب طلبك
         const MASTER_CODE = "1279";
 
         // --- Icons ---
@@ -86,17 +88,15 @@
         const IconMenu = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>;
         const IconX = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
         const IconUserCircle = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 0 0-16 0"></path></svg>;
-        
-        // أسهم التنقل
         const IconBack = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>;
         const IconForward = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>;
+        const IconClipboard = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>;
+        const IconHome = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>;
 
-        // 2. التطبيق الرئيسي
         function App() {
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [currentUser, setCurrentUser] = useState(null);
             
-            // نظام السجل (History) لزرار الرجوع والتقدم
             const [history, setHistory] = useState(['appointments']);
             const [currentIndex, setCurrentIndex] = useState(0);
             const activeTab = history[currentIndex];
@@ -104,12 +104,12 @@
             const [selectedBranch, setSelectedBranch] = useState('all');
             const [isSidebarOpen, setIsSidebarOpen] = useState(false);
             
-            const [data, setData] = useState({ branches: [], staff: [], patients: [], appointments: [], payments: [] });
+            const [data, setData] = useState({ branches: [], staff: [], patients: [], appointments: [], payments: [], shortages: [] });
             
             const [modal, setModal] = useState(null);
             const [confirmAction, setConfirmAction] = useState(null);
 
-            // دالة التنقل تقفل القائمة تلقائياً وتضيف للسجل
+            // دوال التنقل
             const navigateTo = (tab) => {
                 setIsSidebarOpen(false);
                 if (tab !== activeTab) {
@@ -119,24 +119,55 @@
                     setCurrentIndex(newHistory.length - 1);
                 }
             };
+            const goBack = () => { if (currentIndex > 0) setCurrentIndex(currentIndex - 1); };
+            const goForward = () => { if (currentIndex < history.length - 1) setCurrentIndex(currentIndex + 1); };
 
-            const goBack = () => {
-                if (currentIndex > 0) setCurrentIndex(currentIndex - 1);
-            };
-
-            const goForward = () => {
-                if (currentIndex < history.length - 1) setCurrentIndex(currentIndex + 1);
-            };
-
+            // الجلب والحذف التلقائي للمواعيد القديمة
             useEffect(() => {
                 auth.signInAnonymously().catch(err => console.log(err));
-                const unsub1 = db.collection('branches').onSnapshot(s => setData(d => ({...d, branches: s.docs.map(d => ({id: d.id, ...d.data()}))})));
-                const unsub2 = db.collection('staff_members').onSnapshot(s => setData(d => ({...d, staff: s.docs.map(d => ({id: d.id, ...d.data()}))})));
-                const unsub3 = db.collection('patients').onSnapshot(s => setData(d => ({...d, patients: s.docs.map(d => ({id: d.id, ...d.data()}))})));
-                const unsub4 = db.collection('appointments').onSnapshot(s => setData(d => ({...d, appointments: s.docs.map(d => ({id: d.id, ...d.data()}))})));
-                const unsub5 = db.collection('payments').onSnapshot(s => setData(d => ({...d, payments: s.docs.map(d => ({id: d.id, ...d.data()}))})));
-                return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); };
+                const unsub1 = db.collection('branches').onSnapshot(s => setData(d => ({...d, branches: s.docs.map(x => ({id: x.id, ...x.data()}))})));
+                const unsub2 = db.collection('staff_members').onSnapshot(s => setData(d => ({...d, staff: s.docs.map(x => ({id: x.id, ...x.data()}))})));
+                const unsub3 = db.collection('patients').onSnapshot(s => setData(d => ({...d, patients: s.docs.map(x => ({id: x.id, ...x.data()}))})));
+                
+                const unsub4 = db.collection('appointments').onSnapshot(s => {
+                    const appsData = s.docs.map(x => ({id: x.id, ...x.data()}));
+                    
+                    // روبوت التنظيف: حذف أي موعد أقدم من شهر
+                    const oneMonthAgo = new Date();
+                    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+                    const cutoffDate = oneMonthAgo.toISOString().split('T')[0];
+                    
+                    appsData.forEach(app => {
+                        if (app.date && app.date < cutoffDate) {
+                            db.collection('appointments').doc(app.id).delete().catch(()=>console.log("Cleanup Error"));
+                        }
+                    });
+                    
+                    setData(d => ({...d, appointments: appsData.filter(a => !(a.date && a.date < cutoffDate))}));
+                });
+
+                const unsub5 = db.collection('payments').onSnapshot(s => setData(d => ({...d, payments: s.docs.map(x => ({id: x.id, ...x.data()}))})));
+                const unsub6 = db.collection('shortages').onSnapshot(s => setData(d => ({...d, shortages: s.docs.map(x => ({id: x.id, ...x.data()}))})));
+                return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); };
             }, []);
+
+            // دالة تسجيل الدخول
+            const doLogin = (code, staffData) => {
+                if (code === MASTER_CODE) {
+                    setCurrentUser({ name: 'Admin', role: 'superadmin', branchId: 'all' });
+                    setIsLoggedIn(true);
+                    return true;
+                } else {
+                    const found = staffData.find(s => s.code === code.trim());
+                    if (found) {
+                        setCurrentUser(found);
+                        setIsLoggedIn(true);
+                        if (found.role === 'employee') setSelectedBranch(found.branchId);
+                        return true;
+                    }
+                }
+                return false;
+            };
 
             const filteredData = useMemo(() => {
                 const branchId = currentUser?.role === 'employee' ? currentUser.branchId : selectedBranch;
@@ -145,41 +176,24 @@
                     patients: data.patients.filter(filter),
                     appointments: data.appointments.filter(filter),
                     payments: data.payments.filter(filter),
+                    shortages: data.shortages.filter(filter),
                     branches: data.branches
                 };
             }, [data, currentUser, selectedBranch]);
 
-            const handleLogin = (code) => {
-                if (code === MASTER_CODE) {
-                    setCurrentUser({ name: 'Admin', role: 'superadmin', branchId: 'all' });
-                    setIsLoggedIn(true);
-                } else {
-                    const found = data.staff.find(s => s.code === code.trim());
-                    if (found) {
-                        setCurrentUser(found);
-                        setIsLoggedIn(true);
-                        if (found.role === 'employee') setSelectedBranch(found.branchId);
-                    } else { 
-                        alert("كود الدخول غير صحيح!");
-                    }
-                }
-            };
-
-            if (!isLoggedIn) return <LoginView onLogin={handleLogin} />;
+            if (!isLoggedIn) return <LoginView onLogin={doLogin} staffData={data.staff} />;
 
             const isSuperAdmin = currentUser.role === 'superadmin';
             const isAdminOrSuper = currentUser.role === 'admin' || currentUser.role === 'superadmin';
 
             return (
                 <div className="flex h-screen overflow-hidden text-gray-800 bg-[#FDFCFB] relative">
-                    
                     {confirmAction && <ConfirmModal action={confirmAction} onClose={()=>setConfirmAction(null)} />}
-                    {modal && <DataModal modal={modal} branches={data.branches} user={currentUser} onClose={()=>setModal(null)} />}
+                    {modal && <DataModal modal={modal} branches={data.branches} user={currentUser} selectedBranch={selectedBranch} onClose={()=>setModal(null)} />}
 
                     {/* القائمة الجانبية */}
                     <div className={`fixed inset-y-0 right-0 z-50 bg-white border-l border-gold-400 shadow-2xl transition-transform duration-300 transform ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:relative lg:translate-x-0 w-72 h-full flex flex-col`}>
                         <div className="p-8 border-b border-gray-100 flex flex-col items-center relative shrink-0">
-                            {/* تصغير اللوجو بناءً على طلبك ليكون w-28 ليعطي لمسة أرق وأشيك */}
                             <img src="https://i.ibb.co/qLw7Tcqv/logo-Dr-shahenda-original.png" className="w-28 h-auto object-contain drop-shadow-sm mb-2" alt="Logo" />
                             <button onClick={() => setIsSidebarOpen(false)} className="absolute left-4 top-8 p-2 text-gray-400 bg-gray-50 rounded-full lg:hidden"><IconX /></button>
                         </div>
@@ -188,6 +202,7 @@
                             {isAdminOrSuper && <SidebarItem icon={<IconBuilding/>} label="إدارة الفروع" active={activeTab === 'branches'} onClick={() => navigateTo('branches')} />}
                             <SidebarItem icon={<IconUsers/>} label="سجل المرضى" active={activeTab === 'patients'} onClick={() => navigateTo('patients')} />
                             <SidebarItem icon={<IconCalendar/>} label="المواعيد والتقويم" active={activeTab === 'appointments'} onClick={() => navigateTo('appointments')} />
+                            <SidebarItem icon={<IconClipboard/>} label="النواقص" active={activeTab === 'shortages'} onClick={() => navigateTo('shortages')} />
                             {isSuperAdmin && <SidebarItem icon={<IconWallet/>} label="توريدات الفروع" active={activeTab === 'finance'} onClick={() => navigateTo('finance')} />}
                             {isSuperAdmin && <SidebarItem icon={<IconCog/>} label="الموظفين" active={activeTab === 'staff'} onClick={() => navigateTo('staff')} />}
                         </nav>
@@ -195,26 +210,27 @@
 
                     {/* المحتوى الرئيسي */}
                     <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
-                        <header className="h-20 bg-white/90 border-b border-gray-200 px-4 sm:px-6 flex items-center justify-between z-40 shrink-0 shadow-sm">
-                            <div className="flex items-center gap-2 sm:gap-4">
+                        <header className="h-16 md:h-20 bg-white/90 border-b border-gray-200 px-3 sm:px-6 flex items-center justify-between z-40 shrink-0 shadow-sm">
+                            <div className="flex items-center gap-1 sm:gap-3">
                                 <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-gray-700 hover:text-gold-500 rounded-lg lg:hidden"><IconMenu/></button>
                                 
-                                {/* أزرار التقدم والرجوع المضافة حديثاً */}
+                                {/* أزرار التقدم والرجوع والرئيسية */}
                                 <div className="flex items-center bg-gray-50 rounded-full border border-gray-100 p-1">
-                                    <button onClick={goBack} disabled={currentIndex === 0} className={`p-2 rounded-full transition-colors flex items-center justify-center ${currentIndex > 0 ? 'text-gray-600 hover:text-gold-600 hover:bg-white shadow-sm' : 'text-gray-300 cursor-not-allowed'}`} title="رجوع">
+                                    <button onClick={goBack} disabled={currentIndex === 0} className={`p-1.5 sm:p-2 rounded-full transition-colors flex items-center justify-center ${currentIndex > 0 ? 'text-gray-600 hover:text-gold-600 hover:bg-white shadow-sm' : 'text-gray-300 cursor-not-allowed'}`} title="رجوع">
                                         <IconBack />
                                     </button>
-                                    <button onClick={goForward} disabled={currentIndex === history.length - 1} className={`p-2 rounded-full transition-colors flex items-center justify-center ${currentIndex < history.length - 1 ? 'text-gray-600 hover:text-gold-600 hover:bg-white shadow-sm' : 'text-gray-300 cursor-not-allowed'}`} title="للأمام">
+                                    <button onClick={() => navigateTo('dashboard')} className="p-1.5 sm:p-2 rounded-full transition-colors flex items-center justify-center text-gray-600 hover:text-gold-600 hover:bg-white shadow-sm mx-1" title="الرئيسية">
+                                        <IconHome />
+                                    </button>
+                                    <button onClick={goForward} disabled={currentIndex === history.length - 1} className={`p-1.5 sm:p-2 rounded-full transition-colors flex items-center justify-center ${currentIndex < history.length - 1 ? 'text-gray-600 hover:text-gold-600 hover:bg-white shadow-sm' : 'text-gray-300 cursor-not-allowed'}`} title="للأمام">
                                         <IconForward />
                                     </button>
                                 </div>
-
-                                <div className="hidden lg:block font-black tracking-widest text-gray-800 uppercase pr-2">New Era Admin</div>
                             </div>
                             
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3 sm:gap-4">
                                 {isAdminOrSuper && (
-                                    <select value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)} className="bg-gray-50 border border-gray-200 text-xs font-bold p-2.5 rounded-xl outline-none cursor-pointer focus:border-gold-500">
+                                    <select value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)} className="bg-gray-50 border border-gray-200 text-[10px] sm:text-xs font-bold p-1.5 sm:p-2.5 rounded-xl outline-none cursor-pointer focus:border-gold-500 max-w-[100px] sm:max-w-none">
                                         <option value="all">كل الفروع</option>
                                         {data.branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                                     </select>
@@ -223,49 +239,79 @@
                                     <p className="text-xs font-black text-gray-800">{currentUser.name}</p>
                                     <p className="text-[10px] text-gold-500 font-bold uppercase">{isSuperAdmin ? 'Super Admin' : currentUser.role === 'admin' ? 'مدير عام' : 'موظف فرع'}</p>
                                 </div>
-                                <button onClick={() => window.location.reload()} className="text-red-500 hover:bg-red-50 p-2.5 rounded-xl font-bold text-xs transition-colors">خروج</button>
+                                <button onClick={() => {localStorage.removeItem('newEraSavedCode'); window.location.reload();}} className="text-red-500 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-xl font-bold text-xs transition-colors">خروج</button>
                             </div>
                         </header>
 
-                        <div className="flex-1 p-4 md:p-8 overflow-y-auto w-full custom-scrollbar pb-20">
+                        <div className="flex-1 p-3 md:p-8 overflow-y-auto w-full custom-scrollbar pb-20">
                             {activeTab === 'dashboard' && <DashboardStats data={filteredData} userRole={currentUser.role} onNav={navigateTo} />}
                             {activeTab === 'branches' && <BranchesView branches={data.branches} onConfirm={setConfirmAction} onAdd={()=>setModal({type:'branch', mode:'add'})} onEdit={(d)=>setModal({type:'branch', mode:'edit', data:d})} />}
                             {activeTab === 'patients' && <PatientsView patients={filteredData.patients} branches={data.branches} currentUser={currentUser} branchId={currentUser.branchId} onConfirm={setConfirmAction} onAdd={()=>setModal({type:'patient', mode:'add'})} onEdit={(d)=>setModal({type:'patient', mode:'edit', data:d})} />}
-                            {activeTab === 'appointments' && <AppointmentsView apps={filteredData.appointments} patients={data.patients} branches={data.branches} currentUser={currentUser} branchId={currentUser.branchId} onConfirm={setConfirmAction} onAdd={()=>setModal({type:'app', mode:'add'})} onEdit={(d)=>setModal({type:'app', mode:'edit', data:d})} />}
-                            {activeTab === 'finance' && isSuperAdmin && <FinanceView payments={filteredData.payments} branches={data.branches} currentUser={currentUser} branchId={currentUser.branchId} onConfirm={setConfirmAction} onAdd={()=>setModal({type:'payment', mode:'add'})} />}
+                            {activeTab === 'appointments' && <AppointmentsView apps={filteredData.appointments} branches={data.branches} currentUser={currentUser} selectedBranch={selectedBranch} setConfirm={setConfirmAction} onAdd={()=>setModal({type:'app', mode:'add'})} onEdit={(d)=>setModal({type:'app', mode:'edit', data:d})} onNav={navigateTo}/>}
+                            {activeTab === 'finance' && isSuperAdmin && <FinanceView payments={filteredData.payments} branches={data.branches} currentUser={currentUser} setConfirm={setConfirmAction} onAdd={()=>setModal({type:'payment', mode:'add'})} />}
                             {activeTab === 'staff' && isSuperAdmin && <StaffView staff={data.staff} branches={data.branches} onConfirm={setConfirmAction} onAdd={()=>setModal({type:'staff', mode:'add'})} onEdit={(d)=>setModal({type:'staff', mode:'edit', data:d})} />}
+                            {activeTab === 'shortages' && <ShortagesView shortages={filteredData.shortages} branches={data.branches} currentUser={currentUser} selectedBranch={selectedBranch} onConfirm={setConfirmAction} />}
                         </div>
                     </div>
                 </div>
             );
         }
 
-        // --- المكونات المساعدة ---
-        function LoginView({ onLogin }) {
+        // --- شاشة الدخول مع ميزة تذكرني ---
+        function LoginView({ onLogin, staffData }) {
             const [code, setCode] = useState(['', '', '', '']);
+            const [rememberMe, setRememberMe] = useState(true);
             const inputRefs = useRef([]);
+
+            // ميزة التحقق من الذاكرة (Auto-login)
+            useEffect(() => {
+                if (staffData && staffData.length > 0) {
+                    const savedCode = localStorage.getItem('newEraSavedCode');
+                    if (savedCode) {
+                        onLogin(savedCode, staffData);
+                    }
+                }
+            }, [staffData]);
+
             const handleChange = (index, value) => {
                 if (!/^[0-9]*$/.test(value)) return;
                 const newCode = [...code]; newCode[index] = value.slice(-1); setCode(newCode);
                 if (value && index < 3) inputRefs.current[index + 1].focus();
             };
+
             const handleKeyDown = (index, e) => {
                 if (e.key === 'Backspace' && !code[index] && index > 0) inputRefs.current[index - 1].focus();
-                else if (e.key === 'Enter') onLogin(code.join(''));
+                else if (e.key === 'Enter') attemptLogin();
             };
+
+            const attemptLogin = () => {
+                const fullCode = code.join('');
+                const success = onLogin(fullCode, staffData);
+                if (success && rememberMe) {
+                    localStorage.setItem('newEraSavedCode', fullCode);
+                } else if (!success) {
+                    alert("كود الدخول غير صحيح!");
+                    setCode(['', '', '', '']);
+                    inputRefs.current[0].focus();
+                }
+            };
+
             return (
                 <div className="h-screen bg-[#050505] flex items-center justify-center p-6 text-center w-full relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-96 h-96 bg-gold-600/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2"></div>
-                    <div className="absolute bottom-0 left-0 w-96 h-96 bg-gold-600/10 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2"></div>
                     <div className="w-full max-w-md bg-[#111111] p-10 rounded-[40px] border border-white/5 shadow-2xl relative z-10 flex flex-col items-center animate-scale-in">
                         <img src="https://i.ibb.co/qLw7Tcqv/logo-Dr-shahenda-original.png" className="w-64 mb-8 drop-shadow-[0_0_15px_rgba(245,158,11,0.2)]" />
                         <p className="text-gray-400 text-sm mb-6 font-bold tracking-widest uppercase">أدخل الكود الخاص بك</p>
-                        <div className="flex gap-4 mb-10" dir="ltr">
+                        <div className="flex gap-4 mb-6" dir="ltr">
                             {[0, 1, 2, 3].map((index) => (
                                 <input key={index} ref={el => inputRefs.current[index] = el} type="password" inputMode="numeric" value={code[index]} onChange={(e) => handleChange(index, e.target.value)} onKeyDown={(e) => handleKeyDown(index, e)} className="w-14 h-16 bg-black/80 border border-white/10 rounded-2xl text-center text-3xl font-black text-gold-500 focus:border-gold-500 outline-none transition-all shadow-inner" />
                             ))}
                         </div>
-                        <button onClick={()=>onLogin(code.join(''))} className="w-full bg-gradient-to-r from-gold-600 to-gold-400 text-black font-black py-4 rounded-2xl shadow-lg hover:scale-105 transition-transform text-lg">تـسـجـيـل الـدخـول</button>
+                        <label className="flex items-center gap-2 text-gray-400 text-sm font-bold mb-8 cursor-pointer hover:text-gold-500 transition-colors">
+                            <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="rounded" />
+                            تذكرني (للدخول التلقائي)
+                        </label>
+                        <button onClick={attemptLogin} className="w-full bg-gradient-to-r from-gold-600 to-gold-400 text-black font-black py-4 rounded-2xl shadow-lg hover:scale-105 transition-transform text-lg">تـسـجـيـل الـدخـول</button>
                     </div>
                 </div>
             );
@@ -283,79 +329,93 @@
         function DashboardStats({ data, userRole, onNav }) {
             const stats = [
                 { label: 'سجل المرضى', val: data.patients.length, icon: <IconUsers/>, tab: 'patients' },
-                { label: 'المواعيد القادمة', val: data.appointments.length, icon: <IconCalendar/>, tab: 'appointments' }
+                { label: 'المواعيد القادمة', val: data.appointments.length, icon: <IconCalendar/>, tab: 'appointments' },
+                { label: 'النواقص', val: data.shortages.length, icon: <IconClipboard/>, tab: 'shortages' }
             ];
             if (userRole === 'superadmin') {
-                stats.push({ label: 'إجمالي التوريدات', val: data.payments.reduce((a,b) => a+Number(b.amount||0),0) + ' EGP', icon: <IconWallet/>, tab: 'finance' });
+                stats.push({ label: 'الإيرادات', val: data.payments.reduce((a,b) => a+Number(b.amount||0),0) + ' ج', icon: <IconWallet/>, tab: 'finance' });
             }
             return (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 animate-fade-in">
                     {stats.map((s, i) => (
-                        <div key={i} onClick={() => onNav(s.tab)} className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm cursor-pointer hover:-translate-y-2 transition-transform flex items-center gap-6">
-                            <div className="w-16 h-16 rounded-2xl bg-gray-50 text-gold-500 flex items-center justify-center">{s.icon}</div>
-                            <div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{s.label}</p><p className="text-2xl font-black text-gray-800 tracking-tighter">{s.val}</p></div>
+                        <div key={i} onClick={() => onNav(s.tab)} className="bg-white p-4 sm:p-6 rounded-[20px] sm:rounded-[30px] border border-gray-100 shadow-sm cursor-pointer hover:-translate-y-1 transition-transform flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
+                            <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gray-50 text-gold-500 flex items-center justify-center shrink-0">{s.icon}</div>
+                            <div><p className="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-widest">{s.label}</p><p className="text-lg sm:text-2xl font-black text-gray-800 tracking-tighter">{s.val}</p></div>
                         </div>
                     ))}
                 </div>
             );
         }
 
-        function AppointmentsView({ apps, patients, branches, currentUser, branchId, onConfirm, onAdd, onEdit }) {
+        // --- المواعيد (تعديلات الحجم والتجميع والفصل) ---
+        function AppointmentsView({ apps, branches, currentUser, selectedBranch, setConfirm, onAdd, onEdit, onNav }) {
             const [viewMode, setViewMode] = useState('daily'); 
             const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
             const filteredApps = useMemo(() => {
-                let list = [...apps];
+                let list = apps.filter(a => selectedBranch === 'all' || a.branchId === selectedBranch);
                 list.sort((a, b) => {
                     const dA = a.date || ""; const dB = b.date || "";
                     if (dA !== dB) return dA.localeCompare(dB);
                     const tA = a.time || ""; const tB = b.time || "";
                     return tA.localeCompare(tB);
                 });
-                if (viewMode === 'daily') return list.filter(a => a.date === selectedDate);
-                if (viewMode === 'weekly') {
-                    const start = new Date(selectedDate);
-                    const end = new Date(start); end.setDate(start.getDate() + 7);
-                    return list.filter(a => { const d = new Date(a.date || ""); return d >= start && d <= end; });
-                }
                 return list;
-            }, [apps, viewMode, selectedDate]);
+            }, [apps, selectedBranch]);
 
-            const groupedApps = useMemo(() => {
+            const dailyApps = useMemo(() => filteredApps.filter(a => a.date === selectedDate), [filteredApps, selectedDate]);
+
+            // تجميع المواعيد حسب الفرع في العرض اليومي (لو مختار كل الفروع)
+            const groupedByBranchDaily = useMemo(() => {
+                if (selectedBranch !== 'all') return { [selectedBranch]: dailyApps };
                 const groups = {};
-                filteredApps.forEach(a => {
-                    if (!a.date) return;
-                    if (!groups[a.date]) groups[a.date] = [];
-                    groups[a.date].push(a);
+                dailyApps.forEach(a => {
+                    const bId = a.branchId || 'unknown';
+                    if (!groups[bId]) groups[bId] = [];
+                    groups[bId].push(a);
                 });
-                return Object.entries(groups).sort((a,b) => a[0].localeCompare(b[0]));
-            }, [filteredApps]);
+                return groups;
+            }, [dailyApps, selectedBranch]);
 
+            // تحضير الـ 7 أيام القادمة للعرض الأسبوعي الجديد
+            const weeklyDays = useMemo(() => {
+                const days = [];
+                for(let i=0; i<7; i++) {
+                    const d = new Date(selectedDate);
+                    d.setDate(d.getDate() + i);
+                    const dStr = d.toISOString().split('T')[0];
+                    const dayName = new Intl.DateTimeFormat('ar-EG', { weekday: 'long' }).format(d);
+                    const dayApps = filteredApps.filter(a => a.date === dStr);
+                    days.push({ date: dStr, dayName, apps: dayApps });
+                }
+                return days;
+            }, [filteredApps, selectedDate]);
+
+            // إرجاع التقويم الشهري بناءً على طلبك
             const renderCalendar = () => {
                 const date = new Date(selectedDate);
                 const year = date.getFullYear(); const month = date.getMonth();
                 const firstDay = new Date(year, month, 1).getDay();
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
-                const prevDays = new Date(year, month, 0).getDate();
                 const calendarDays = [];
-                for (let i = firstDay - 1; i >= 0; i--) calendarDays.push({ d: prevDays - i, m: 'other' });
+                for (let i = 0; i < firstDay; i++) calendarDays.push({ empty: true });
                 for (let i = 1; i <= daysInMonth; i++) {
                     const dStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
-                    const count = apps.filter(a => a.date === dStr).length;
-                    calendarDays.push({ d: i, m: 'current', date: dStr, count });
+                    const count = apps.filter(a => a.date === dStr && (selectedBranch === 'all' || a.branchId === selectedBranch)).length;
+                    calendarDays.push({ d: i, date: dStr, count });
                 }
                 return (
-                    <div className="bg-white rounded-[30px] border border-gray-100 shadow-sm overflow-hidden animate-slide-up">
-                        <div className="grid grid-cols-7 bg-gray-50 border-b border-gray-100 text-center py-3 text-[10px] font-black text-gray-400">
+                    <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm overflow-hidden animate-slide-up mt-4">
+                        <div className="grid grid-cols-7 bg-gray-50 border-b border-gray-100 text-center py-2 text-[9px] font-black text-gray-500">
                             <div>أحد</div><div>إثنين</div><div>ثلاثاء</div><div>أربعاء</div><div>خميس</div><div>جمعة</div><div>سبت</div>
                         </div>
                         <div className="calendar-grid">
-                            {calendarDays.map((item, idx) => (
+                            {calendarDays.map((item, idx) => item.empty ? <div key={idx} className="calendar-cell bg-gray-50 opacity-30"></div> : (
                                 <div key={idx} 
-                                    onClick={() => item.m === 'current' && (setSelectedDate(item.date), setViewMode('daily'))}
-                                    className={`calendar-cell ${item.m === 'other' ? 'other-month' : ''} ${item.date === new Date().toISOString().split('T')[0] ? 'today' : ''}`}
+                                    onClick={() => { setSelectedDate(item.date); setViewMode('daily'); }}
+                                    className={`calendar-cell ${item.date === selectedDate ? 'today' : ''}`}
                                 >
-                                    <span className="text-sm font-bold">{item.d}</span>
+                                    <span className="text-xs font-bold">{item.d}</span>
                                     {item.count > 0 && <span className="text-[8px] font-black text-gold-600 mt-1 bg-gold-50 px-1.5 rounded">{item.count} حجز</span>}
                                     {item.count > 0 && <span className="dot"></span>}
                                 </div>
@@ -366,84 +426,120 @@
             };
 
             const AppCard = ({ a }) => (
-                <div className="bg-white p-3 rounded-2xl border border-gray-100 flex items-center justify-between gap-2 hover:bg-gray-50 transition-colors shadow-sm">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <div className="bg-gold-100 text-gold-700 px-2.5 py-1.5 rounded-lg text-xs font-black shrink-0 tracking-widest">{a.time || '00:00'}</div>
+                <div className="bg-white p-2.5 rounded-xl border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-gray-50 transition-colors shadow-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <div className="bg-gold-50 text-gold-700 px-2 py-1 rounded-lg text-[10px] font-black shrink-0 tracking-widest">{a.time || '00:00'}</div>
                         <div className="min-w-0">
-                            <h5 className="font-black text-gray-800 text-sm truncate mb-0.5">{a.patientName}</h5>
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-[11px] font-mono font-bold text-gray-500 tracking-wider" dir="ltr">{a.phone || 'بدون رقم'}</span>
-                                {a.service && <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 rounded font-bold">{a.service}</span>}
+                            <h5 className="font-black text-gray-800 text-xs truncate leading-tight mb-0.5">{a.patientName}</h5>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-[9px] font-mono font-bold text-gray-500 tracking-wider" dir="ltr">{a.phone || 'بدون رقم'}</span>
+                                {a.service && <span className="text-[8px] bg-blue-50 text-blue-600 px-1.5 rounded font-bold">{a.service}</span>}
                             </div>
-                            {(currentUser.role === 'admin' || currentUser.role === 'superadmin') && (
-                                <div className="text-[9px] text-amber-600 mt-1 font-bold flex items-center gap-1">
-                                    <IconUserCircle/> بواسطة: {a.recordedBy || 'المريض'}
-                                </div>
-                            )}
                         </div>
                     </div>
-                    <div className="flex gap-1 shrink-0">
-                        <button onClick={()=>onEdit(a)} className="p-2 bg-gray-50 text-gold-500 rounded-xl hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
-                        <button onClick={()=>onConfirm({msg:'إلغاء الموعد نهائياً؟', onConfirm:()=>{db.collection('appointments').doc(a.id).delete(); onConfirm(null);}})} className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
+                    <div className="flex gap-1 shrink-0 self-end sm:self-auto">
+                        <button onClick={()=>onEdit(a)} className="p-1.5 bg-gray-50 text-gold-500 rounded-lg hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
+                        <button onClick={()=>setConfirm({msg:'إلغاء الموعد نهائياً؟', onConfirm:()=>{db.collection('appointments').doc(a.id).delete(); setConfirm(null);}})} className="p-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
                     </div>
                 </div>
             );
 
             return (
-                <div className="space-y-6 w-full animate-fade-in">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <h3 className="text-xl font-black text-gray-800">تقويم المواعيد</h3>
-                        <div className="flex bg-gray-100 p-1 rounded-2xl w-full md:w-auto">
-                            <button onClick={() => setViewMode('daily')} className={`flex-1 px-4 py-2 text-xs font-bold rounded-xl transition-all ${viewMode==='daily' ? 'bg-white shadow-sm text-gold-600' : 'text-gray-500'}`}>يومي</button>
-                            <button onClick={() => setViewMode('weekly')} className={`flex-1 px-4 py-2 text-xs font-bold rounded-xl transition-all ${viewMode==='weekly' ? 'bg-white shadow-sm text-gold-600' : 'text-gray-500'}`}>أسبوعي</button>
-                            <button onClick={() => setViewMode('monthly')} className={`flex-1 px-4 py-2 text-xs font-bold rounded-xl transition-all ${viewMode==='monthly' ? 'bg-white shadow-sm text-gold-600' : 'text-gray-500'}`}>شهري</button>
+                <div className="space-y-4 w-full animate-fade-in">
+                    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
+                        <h3 className="text-lg font-black text-gray-800">إدارة المواعيد</h3>
+                        <div className="flex bg-gray-100 p-1 rounded-xl w-full lg:w-auto">
+                            <button onClick={() => setViewMode('daily')} className={`flex-1 px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode==='daily' ? 'bg-white shadow text-gold-600' : 'text-gray-500'}`}>يومي</button>
+                            <button onClick={() => setViewMode('weekly')} className={`flex-1 px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode==='weekly' ? 'bg-white shadow text-gold-600' : 'text-gray-500'}`}>أسبوعي</button>
+                            {/* إضافة زر الشهري */}
+                            <button onClick={() => setViewMode('monthly')} className={`flex-1 px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode==='monthly' ? 'bg-white shadow text-gold-600' : 'text-gray-500'}`}>شهري</button>
                         </div>
-                        <input type="date" value={selectedDate} onChange={(e)=>setSelectedDate(e.target.value)} className="w-full md:w-auto bg-white border border-gray-200 text-sm font-bold p-2.5 rounded-xl outline-none focus:border-gold-500 transition-colors"/>
-                        <button onClick={onAdd} className="w-full md:w-auto bg-gold-500 text-white px-6 py-2.5 rounded-xl font-black shadow-md shadow-gold-500/20 hover:bg-gold-600 transition-colors">+ حجز موعد</button>
+                        <input type="date" value={selectedDate} onChange={(e)=>setSelectedDate(e.target.value)} className="w-full lg:w-auto bg-white border border-gray-200 text-xs font-bold p-2 rounded-xl outline-none focus:border-gold-500"/>
+                        <button onClick={onAdd} className="w-full lg:w-auto bg-gold-500 text-white px-5 py-2 rounded-xl text-xs font-black shadow-md hover:bg-gold-600 transition-colors">+ حجز</button>
                     </div>
 
+                    {/* العرض اليومي - مقسم بالفروع */}
                     {viewMode === 'daily' && (
-                        <div className="space-y-2 animate-slide-up bg-white p-3 rounded-[30px] border border-gray-100 shadow-sm">
-                            {filteredApps.map(a => <AppCard key={a.id} a={a} />)}
-                            {filteredApps.length === 0 && <div className="p-10 text-center text-gray-400 font-bold">لا توجد مواعيد في هذا اليوم.</div>}
+                        <div className="animate-slide-up">
+                            {Object.keys(groupedByBranchDaily).length === 0 ? (
+                                <div className="p-8 text-center text-gray-400 font-bold border border-dashed rounded-3xl bg-white text-sm">لا توجد مواعيد في هذا اليوم.</div>
+                            ) : (
+                                Object.entries(groupedByBranchDaily).map(([bId, bApps]) => {
+                                    if(bApps.length === 0) return null;
+                                    const bName = branches.find(b=>b.id===bId)?.name || 'العيادة';
+                                    return (
+                                        <div key={bId} className="mb-4">
+                                            {/* إظهار اسم الفرع كفاصل دهبي ظاهر جداً */}
+                                            {selectedBranch === 'all' && (
+                                                <div className="flex items-center gap-3 mb-4 mt-2">
+                                                    <span className="text-xs font-black bg-gradient-to-r from-gold-500 to-gold-600 text-white px-4 py-1.5 rounded-lg shadow-md border border-gold-400">فرع {bName}</span>
+                                                    <div className="h-0.5 bg-gradient-to-l from-gold-200 to-transparent flex-1 rounded-full"></div>
+                                                </div>
+                                            )}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                                {bApps.map(a => <AppCard key={a.id} a={a} />)}
+                                            </div>
+                                        </div>
+                                    )
+                                })
+                            )}
                         </div>
                     )}
 
+                    {/* العرض الأسبوعي الجديد - جدول أنيق */}
                     {viewMode === 'weekly' && (
-                        <div className="space-y-6 animate-slide-up">
-                            {groupedApps.map(([dayDate, dayApps]) => (
-                                <div key={dayDate} className="bg-white rounded-[30px] border border-gray-100 shadow-sm overflow-hidden">
-                                    <div className="bg-gray-50 px-5 py-3 border-b border-gray-100 flex justify-between items-center">
-                                        <span className="font-black text-gray-700 text-sm flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-gold-500"></span> {dayDate}</span>
-                                        <span className="text-[10px] font-bold text-gold-600 bg-gold-100 px-2 py-0.5 rounded-md">{dayApps.length} مواعيد</span>
+                        <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm overflow-hidden animate-slide-up">
+                            <div className="divide-y divide-gray-50">
+                                {weeklyDays.map((day, idx) => (
+                                    <div key={idx} onClick={() => { setSelectedDate(day.date); setViewMode('daily'); }} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-50 cursor-pointer transition-colors group">
+                                        <div className="flex items-center gap-4 mb-2 sm:mb-0">
+                                            <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center border-2 ${day.date === new Date().toISOString().split('T')[0] ? 'bg-gold-50 border-gold-400 text-gold-700' : 'bg-white border-gray-100 text-gray-500 group-hover:border-gold-200'}`}>
+                                                <span className="text-xs font-black">{day.date.split('-')[2]}</span>
+                                            </div>
+                                            <div>
+                                                <h4 className="font-black text-gray-800 text-sm">{day.dayName}</h4>
+                                                <p className="text-[10px] text-gray-400 font-mono">{day.date}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {day.apps.length > 0 ? (
+                                                <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
+                                                    <span className="text-xs font-black text-blue-600">{day.apps.length} مواعيد</span>
+                                                    <div className="flex -space-x-1.5 rtl:space-x-reverse">
+                                                        {day.apps.slice(0,4).map((a,i) => <div key={i} className="w-5 h-5 rounded-full bg-white border border-blue-200 flex items-center justify-center text-[8px] font-bold text-blue-500 shadow-sm">{a.patientName.charAt(0)}</div>)}
+                                                        {day.apps.length > 4 && <div className="w-5 h-5 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-[8px] font-bold text-gray-500">+{day.apps.length-4}</div>}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-[10px] text-gray-400 font-bold bg-gray-50 px-3 py-1 rounded-lg">لا يوجد حجز</span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="p-3 space-y-2">
-                                        {dayApps.map(a => <AppCard key={a.id} a={a} />)}
-                                    </div>
-                                </div>
-                            ))}
-                            {groupedApps.length === 0 && <div className="p-10 text-center text-gray-400 font-bold bg-white rounded-[30px] border border-dashed">لا توجد مواعيد في هذا الأسبوع.</div>}
+                                ))}
+                            </div>
                         </div>
                     )}
 
+                    {/* العرض الشهري المُسترجع */}
                     {viewMode === 'monthly' && renderCalendar()}
                 </div>
             );
         }
 
+        // --- الفروع (تصغير الكروت) ---
         function BranchesView({ branches, onConfirm, onAdd, onEdit }) {
             return (
-                <div className="space-y-6 w-full animate-fade-in">
-                    <div className="flex justify-between items-center"><h3 className="text-xl font-black text-gray-800">الفروع</h3><button onClick={onAdd} className="bg-gold-500 text-white px-6 py-2 rounded-2xl font-bold shadow-md shadow-gold-500/20 hover:bg-gold-600 transition-colors">+ فرع جديد</button></div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-4 w-full animate-fade-in">
+                    <div className="flex justify-between items-center"><h3 className="text-lg font-black text-gray-800">إدارة الفروع</h3><button onClick={onAdd} className="bg-gold-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-gold-600">+ فرع جديد</button></div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {branches.map(b => (
-                            <div key={b.id} className="bg-white p-6 rounded-[30px] border border-gray-100 shadow-sm relative">
-                                <div className="absolute top-4 left-4 flex gap-2">
-                                    <button onClick={() => onEdit(b)} className="p-2 text-gold-500 bg-gold-50 rounded-xl hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
-                                    <button onClick={() => onConfirm({msg:'حذف الفرع؟', onConfirm:()=>{db.collection('branches').doc(b.id).delete(); onConfirm(null);}})} className="p-2 text-red-500 bg-red-50 rounded-xl hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
+                            <div key={b.id} className="bg-white p-4 rounded-[20px] border border-gray-100 shadow-sm relative group">
+                                <div className="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => onEdit(b)} className="p-1.5 text-gold-500 bg-gold-50 rounded-lg hover:bg-gold-500 hover:text-white"><IconEdit/></button>
+                                    <button onClick={() => onConfirm({msg:'حذف الفرع؟', onConfirm:()=>{db.collection('branches').doc(b.id).delete(); onConfirm(null);}})} className="p-1.5 text-red-500 bg-red-50 rounded-lg hover:bg-red-500 hover:text-white"><IconTrash/></button>
                                 </div>
-                                <div className="text-gold-500 mb-4 bg-gray-50 w-14 h-14 rounded-2xl flex items-center justify-center"><IconBuilding/></div>
-                                <h4 className="text-xl font-black text-gray-800 mb-1">{b.name}</h4><p className="text-xs font-bold text-gray-500">{b.phone}</p>
+                                <div className="text-gold-500 mb-2 bg-gray-50 w-10 h-10 rounded-xl flex items-center justify-center"><IconBuilding/></div>
+                                <h4 className="text-sm font-black text-gray-800 mb-0.5">{b.name}</h4><p className="text-[10px] font-bold text-gray-500">{b.phone}</p>
                             </div>
                         ))}
                     </div>
@@ -451,24 +547,115 @@
             );
         }
 
+        // --- الموظفين (تصغير الجدول) ---
+        function StaffView({ staff, branches, onConfirm, onAdd, onEdit }) {
+            return (
+                <div className="space-y-4 w-full animate-fade-in">
+                    <div className="flex justify-between items-center"><h3 className="text-lg font-black text-gray-800">الموظفين</h3><button onClick={onAdd} className="bg-gold-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-gold-600">+ موظف جديد</button></div>
+                    <div className="bg-white rounded-[20px] border border-gray-100 overflow-hidden shadow-sm w-full overflow-x-auto">
+                        <table className="w-full text-right text-[10px] min-w-[350px]">
+                            <thead className="bg-gray-50 text-gray-500 border-b"><tr><th className="p-2">الاسم</th><th className="p-2 text-center">الكود</th><th className="p-2">الفرع</th><th className="p-2 text-center">أوامر</th></tr></thead>
+                            <tbody className="divide-y divide-gray-100">{staff.map(s => (
+                                <tr key={s.id} className="hover:bg-gray-50/50">
+                                    <td className="p-2 font-bold text-gray-800">{s.name}</td>
+                                    <td className="p-2 text-center font-mono font-black text-gold-600 text-xs tracking-widest">{s.code}</td>
+                                    <td className="p-2 text-gray-500">{s.branchId === 'all' ? 'مدير عام' : branches.find(b=>b.id===s.branchId)?.name}</td>
+                                    <td className="p-2 flex justify-center gap-1">
+                                        <button onClick={() => onEdit(s)} className="p-1 text-gold-500 bg-gold-50 rounded hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
+                                        <button onClick={() => onConfirm({msg:'حذف الموظف نهائياً؟', onConfirm:()=>{db.collection('staff_members').doc(s.id).delete(); onConfirm(null);}})} className="p-1 text-red-500 bg-red-50 rounded hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
+                                    </td>
+                                </tr>
+                            ))}</tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- باقي المكونات زي ما هي بتنسيق متناسق ---
+        function ShortagesView({ shortages, branches, currentUser, selectedBranch, onConfirm }) {
+            const [itemName, setItemName] = useState('');
+            const [quantity, setQuantity] = useState('');
+            const [branchId, setBranchId] = useState(currentUser.role === 'employee' ? currentUser.branchId : (selectedBranch === 'all' ? (branches[0]?.id || '') : selectedBranch));
+
+            const sortedShortages = useMemo(() => {
+                return [...shortages].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+            }, [shortages]);
+
+            const handleAdd = (e) => {
+                e.preventDefault();
+                if (!itemName || !quantity) return;
+                db.collection('shortages').add({ itemName, quantity, branchId, requestedBy: currentUser.name, timestamp: new Date().toISOString() });
+                setItemName(''); setQuantity('');
+            };
+
+            return (
+                <div className="space-y-4 w-full animate-fade-in">
+                    <h3 className="text-lg font-black text-gray-800">النواقص</h3>
+                    <div className="bg-white p-4 rounded-[20px] border border-gray-100 shadow-sm">
+                        <form onSubmit={handleAdd} className="flex flex-col md:flex-row gap-3 items-end">
+                            <div className="flex-1 w-full">
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">اسم الصنف</label>
+                                <input type="text" required value={itemName} onChange={e=>setItemName(e.target.value)} placeholder="مثال: كمامات..." className="w-full bg-gray-50 border border-gray-100 focus:border-gold-500 p-2.5 rounded-lg outline-none font-bold text-gray-800 text-xs" />
+                            </div>
+                            <div className="w-full md:w-28">
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">الكمية</label>
+                                <input type="text" required value={quantity} onChange={e=>setQuantity(e.target.value)} placeholder="مثال: 5" className="w-full bg-gray-50 border border-gray-100 focus:border-gold-500 p-2.5 rounded-lg outline-none font-bold text-gray-800 text-xs text-center" />
+                            </div>
+                            {(currentUser.role === 'admin' || currentUser.role === 'superadmin') && (
+                                <div className="w-full md:w-40">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">الفرع</label>
+                                    <select value={branchId} onChange={e=>setBranchId(e.target.value)} className="w-full bg-gray-50 border border-gray-100 focus:border-gold-500 p-2.5 rounded-lg outline-none font-bold text-gray-800 text-xs">
+                                        {branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            <button type="submit" className="w-full md:w-auto bg-gold-500 text-white px-6 py-2.5 rounded-lg font-black text-xs shadow-md hover:bg-gold-600">أضف +</button>
+                        </form>
+                    </div>
+
+                    <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-3 space-y-2">
+                        {sortedShortages.length === 0 ? (
+                            <div className="p-4 text-center text-gray-400 font-bold text-xs">لا توجد نواقص مسجلة.</div>
+                        ) : (
+                            sortedShortages.map(item => {
+                                const bName = branches.find(b => b.id === item.branchId)?.name || '';
+                                return (
+                                    <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-black text-gray-800 text-xs">{item.itemName}</span>
+                                                <span className="bg-gold-100 text-gold-700 px-1.5 py-0.5 rounded text-[9px] font-bold">{item.quantity}</span>
+                                            </div>
+                                            <div className="text-[9px] text-gray-500 flex gap-1 mt-1">
+                                                <span className="font-bold text-gold-600">{bName}</span> • <span>{item.requestedBy}</span>
+                                            </div>
+                                        </div>
+                                        <button onClick={() => onConfirm({ msg: 'تم الشراء والحذف؟', onConfirm: () => { db.collection('shortages').doc(item.id).delete(); onConfirm(null); }})} className="bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white px-3 py-1.5 rounded-lg font-bold text-[10px] border border-emerald-100 transition-colors">✅ تم الشراء</button>
+                                    </div>
+                                )
+                            })
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
         function PatientsView({ patients, currentUser, onConfirm, onAdd, onEdit }) {
             return (
-                <div className="space-y-6 w-full animate-fade-in">
-                    <div className="flex justify-between items-center"><h3 className="text-xl font-black text-gray-800">سجل المرضى</h3><button onClick={onAdd} className="bg-gold-500 text-white px-6 py-2 rounded-2xl font-bold shadow-md shadow-gold-500/20 hover:bg-gold-600 transition-colors">+ مريض جديد</button></div>
-                    <div className="bg-white rounded-[30px] border border-gray-100 overflow-hidden shadow-sm w-full">
-                        <table className="w-full text-right text-sm min-w-[500px]">
+                <div className="space-y-4 w-full animate-fade-in">
+                    <div className="flex justify-between items-center"><h3 className="text-lg font-black text-gray-800">سجل المرضى</h3><button onClick={onAdd} className="bg-gold-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-gold-600">+ مريض جديد</button></div>
+                    <div className="bg-white rounded-[20px] border border-gray-100 overflow-hidden shadow-sm w-full overflow-x-auto">
+                        <table className="w-full text-right text-xs min-w-[500px]">
                             <thead className="bg-gray-50 text-gray-500 border-b"><tr><th className="p-4">ملف</th><th className="p-4">الاسم</th><th className="p-4">الهاتف</th><th className="p-4 text-center">أوامر</th></tr></thead>
                             <tbody className="divide-y divide-gray-100">{patients.map(p => (
-                                <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
+                                <tr key={p.id} className="hover:bg-gray-50/50">
                                     <td className="p-4 font-black text-gold-600">#{p.fileNo}</td>
-                                    <td className="p-4">
-                                        <div className="font-bold text-gray-800">{p.name}</div>
-                                        {(currentUser.role === 'admin' || currentUser.role === 'superadmin') && p.recordedBy && <div className="text-[9px] text-gray-400 mt-1 flex items-center gap-1"><IconUserCircle/> بواسطة: {p.recordedBy}</div>}
-                                    </td>
+                                    <td className="p-4"><div className="font-bold text-gray-800 mb-0.5">{p.name}</div>{(currentUser.role === 'admin' || currentUser.role === 'superadmin') && p.recordedBy && <div className="text-[8px] text-gray-400">بواسطة: {p.recordedBy}</div>}</td>
                                     <td className="p-4 text-gray-500 font-mono tracking-wider" dir="ltr">{p.phone}</td>
-                                    <td className="p-4 flex justify-center gap-2">
-                                        <button onClick={() => onEdit(p)} className="p-2 text-gold-500 bg-gold-50 rounded-xl hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
-                                        <button onClick={() => onConfirm({msg:'حذف المريض نهائياً؟', onConfirm:()=>{db.collection('patients').doc(p.id).delete(); onConfirm(null);}})} className="p-2 text-red-500 bg-red-50 rounded-xl hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
+                                    <td className="p-4 flex justify-center gap-1">
+                                        <button onClick={() => onEdit(p)} className="p-1.5 text-gold-500 bg-gold-50 rounded-lg hover:bg-gold-500 hover:text-white"><IconEdit/></button>
+                                        <button onClick={() => onConfirm({msg:'حذف المريض نهائياً؟', onConfirm:()=>{db.collection('patients').doc(p.id).delete(); onConfirm(null);}})} className="p-1.5 text-red-500 bg-red-50 rounded-lg hover:bg-red-500 hover:text-white"><IconTrash/></button>
                                     </td>
                                 </tr>
                             ))}</tbody>
@@ -481,48 +668,26 @@
         function FinanceView({ payments, branches, currentUser, onConfirm, onAdd }) {
             const total = payments.reduce((a,b)=>a+Number(b.amount||0),0);
             return (
-                <div className="space-y-6 w-full animate-fade-in">
-                    <div className="bg-gradient-to-r from-gold-600 to-gold-400 p-8 rounded-[40px] text-white shadow-xl flex flex-wrap justify-between items-center gap-4 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                        <div className="relative z-10"><p className="text-gold-100 text-xs font-bold mb-2 uppercase tracking-widest">الإيرادات</p><h2 className="text-4xl md:text-5xl font-black">{total} EGP</h2></div>
-                        <button onClick={onAdd} className="relative z-10 bg-white text-gold-600 px-6 py-3 rounded-2xl font-black shadow-lg hover:scale-105 transition-transform">+ توريد يومي</button>
+                <div className="space-y-4 w-full animate-fade-in">
+                    <div className="bg-gradient-to-r from-gold-600 to-gold-400 p-6 rounded-[20px] text-white shadow-xl flex flex-wrap justify-between items-center gap-4 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+                        <div className="relative z-10"><p className="text-gold-100 text-[10px] font-bold mb-1 uppercase tracking-widest">الإيرادات</p><h2 className="text-3xl font-black">{total} EGP</h2></div>
+                        <button onClick={onAdd} className="relative z-10 bg-white text-gold-600 px-5 py-2.5 rounded-xl text-xs font-black shadow-lg hover:scale-105 transition-transform">+ توريد يومي</button>
                     </div>
-                    <div className="bg-white p-4 rounded-[30px] border border-gray-100 shadow-sm space-y-3">
+                    <div className="bg-white p-3 rounded-[20px] border border-gray-100 shadow-sm space-y-2">
                         {payments.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(p=>(
-                            <div key={p.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-[20px] relative group hover:bg-gray-100 transition-colors">
+                            <div key={p.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-xl relative group hover:bg-gray-100 transition-colors">
                                 <button onClick={() => onConfirm({msg:'حذف التوريد؟', onConfirm:()=>{db.collection('payments').doc(p.id).delete(); onConfirm(null);}})} className="absolute left-2 top-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"><IconX/></button>
                                 <div>
-                                    <p className="font-black text-sm text-gray-800">فرع {branches.find(b=>b.id===p.branchId)?.name}</p>
-                                    <p className="text-[10px] text-gray-500 font-bold mt-1">{p.date}</p>
-                                    {currentUser.role === 'superadmin' && p.receivedBy && <p className="text-[9px] text-amber-600 mt-1 font-bold flex items-center gap-1"><IconUserCircle/> بواسطة: {p.receivedBy}</p>}
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <p className="font-black text-xs text-gray-800">فرع {branches.find(b=>b.id===p.branchId)?.name}</p>
+                                        {p.paymentMethod && <span className="bg-emerald-100 text-emerald-700 text-[8px] px-1.5 py-0.5 rounded font-bold border border-emerald-200">{p.paymentMethod}</span>}
+                                    </div>
+                                    <p className="text-[9px] text-gray-500 font-bold">{p.date}</p>
                                 </div>
-                                <div className="text-emerald-500 font-black text-lg">+{p.amount} ج</div>
+                                <div className="text-emerald-500 font-black text-base">+{p.amount} ج</div>
                             </div>
                         ))}
-                    </div>
-                </div>
-            );
-        }
-
-        function StaffView({ staff, branches, onConfirm, onAdd, onEdit }) {
-            return (
-                <div className="space-y-6 w-full animate-fade-in">
-                    <div className="flex justify-between items-center"><h3 className="text-xl font-black text-gray-800">الموظفين</h3><button onClick={onAdd} className="bg-gold-500 text-white px-6 py-2 rounded-2xl font-bold shadow-md shadow-gold-500/20 hover:bg-gold-600 transition-colors">+ موظف جديد</button></div>
-                    <div className="bg-white rounded-[30px] border border-gray-100 overflow-hidden shadow-sm w-full overflow-x-auto">
-                        <table className="w-full text-right text-sm min-w-[500px]">
-                            <thead className="bg-gray-50 text-gray-500 border-b"><tr><th className="p-5">الاسم</th><th className="p-5 text-center">الكود</th><th className="p-5">الفرع</th><th className="p-5 text-center">أوامر</th></tr></thead>
-                            <tbody className="divide-y divide-gray-100">{staff.map(s => (
-                                <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
-                                    <td className="p-5 font-bold text-gray-800">{s.name}</td>
-                                    <td className="p-5 text-center font-mono font-black text-gold-600 text-lg tracking-widest">{s.code}</td>
-                                    <td className="p-5 text-gray-500 font-bold">{s.branchId === 'all' ? 'مدير عام (جميع الفروع)' : branches.find(b=>b.id===s.branchId)?.name}</td>
-                                    <td className="p-5 flex justify-center gap-2">
-                                        <button onClick={() => onEdit(s)} className="p-2 text-gold-500 bg-gold-50 rounded-xl hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
-                                        <button onClick={() => onConfirm({msg:'حذف الموظف نهائياً؟', onConfirm:()=>{db.collection('staff_members').doc(s.id).delete(); onConfirm(null);}})} className="p-2 text-red-500 bg-red-50 rounded-xl hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
-                                    </td>
-                                </tr>
-                            ))}</tbody>
-                        </table>
                     </div>
                 </div>
             );
@@ -532,18 +697,18 @@
         function ConfirmModal({ action, onClose }) {
             return (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-6 text-center animate-fade-in">
-                    <div className="bg-white w-full max-w-sm rounded-[30px] p-8 animate-pop shadow-2xl">
-                        <h3 className="text-xl font-black text-gray-800 mb-6">{action.msg}</h3>
+                    <div className="bg-white w-full max-w-sm rounded-[20px] p-6 animate-pop border border-gray-100">
+                        <h3 className="text-lg font-black text-gray-800 mb-6">{action.msg}</h3>
                         <div className="flex gap-3">
-                            <button onClick={action.onConfirm} className="flex-1 py-3 bg-red-500 text-white rounded-xl font-black text-sm">نعم</button>
-                            <button onClick={onClose} className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-black text-sm">لا</button>
+                            <button onClick={action.onConfirm} className="flex-1 py-3 bg-red-500 text-white rounded-xl font-black text-xs">نعم</button>
+                            <button onClick={onClose} className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-black text-xs">لا</button>
                         </div>
                     </div>
                 </div>
             );
         }
 
-        function DataModal({ modal, branches, user, onClose }) {
+        function DataModal({ modal, branches, user, selectedBranch, onClose }) {
             const save = (e) => {
                 e.preventDefault();
                 const f = e.target;
@@ -556,7 +721,7 @@
                 } else if(modal.type==='patient') {
                     col='patients'; d={fileNo:f.fileNo.value, name:f.name.value, phone:f.phone.value, service:f.service.value, branchId:(user.role==='admin' || user.role==='superadmin')?f.bId.value:user.branchId, recordedBy:user.name};
                 } else if(modal.type==='payment') {
-                    col='payments'; d={amount:f.amt.value, date:f.dt.value, branchId:f.bId.value, receivedBy:user.name};
+                    col='payments'; d={amount:f.amt.value, date:f.dt.value, branchId:f.bId.value, receivedBy:user.name, paymentMethod: f.payMethod.value};
                 } else if(modal.type==='branch') {
                     col='branches'; d={name:f.name.value, phone:f.phone.value};
                 }
@@ -568,24 +733,24 @@
 
             return (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] flex items-end sm:items-center justify-center p-4 animate-fade-in">
-                    <div className="bg-white w-full max-w-md rounded-[30px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-slide-up">
-                        <div className="p-6 border-b flex justify-between items-center bg-gray-50/50 shrink-0">
-                            <h3 className="font-black text-gray-800 text-lg">البيانات</h3>
-                            <button type="button" onClick={onClose} className="p-2 text-gray-400 bg-white rounded-full shadow-sm hover:text-gold-500 transition-colors"><IconX/></button>
+                    <div className="bg-white w-full max-w-md rounded-[20px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-slide-up">
+                        <div className="p-4 border-b flex justify-between items-center bg-gray-50/50 shrink-0">
+                            <h3 className="font-black text-gray-800 text-sm">إضافة / تعديل</h3>
+                            <button type="button" onClick={onClose} className="p-1.5 text-gray-400 bg-white rounded-full shadow-sm hover:text-gold-500"><IconX/></button>
                         </div>
-                        <form onSubmit={save} className="p-6 space-y-4 overflow-y-auto custom-scrollbar">
+                        <form onSubmit={save} className="p-5 space-y-3 overflow-y-auto custom-scrollbar">
                             {modal.type==='app' && (
                                 <>
                                     <Input name="pName" label="اسم المريض" defaultValue={modal.data?.patientName} required />
                                     <Input name="phone" label="رقم الموبايل" defaultValue={modal.data?.phone} type="tel" required />
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-2 gap-2">
                                         <Input name="dt" label="التاريخ" type="date" defaultValue={modal.data?.date || new Date().toISOString().split('T')[0]} required />
                                         <Input name="tm" label="الوقت" type="time" defaultValue={modal.data?.time} required />
                                     </div>
                                     <Input name="service" label="الخدمة (اختياري)" defaultValue={modal.data?.service} />
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest block mr-1">الفرع</label>
-                                        <select name="bId" defaultValue={modal.data?.branchId || user.branchId} disabled={user.role === 'employee'} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold outline-none focus:border-gold-500">
+                                        <label className="text-[9px] font-black uppercase text-gray-500 tracking-widest block">الفرع</label>
+                                        <select name="bId" defaultValue={modal.data?.branchId || user.branchId} disabled={user.role === 'employee'} className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl font-bold outline-none text-xs focus:border-gold-500">
                                             {branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
                                         </select>
                                     </div>
@@ -593,7 +758,7 @@
                             )}
                             {modal.type==='patient' && (
                                 <>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-2 gap-2">
                                         <Input name="fileNo" label="رقم الملف" defaultValue={modal.data?.fileNo} required />
                                         <Input name="name" label="الاسم الكامل" defaultValue={modal.data?.name} required />
                                     </div>
@@ -601,8 +766,8 @@
                                     <Input name="service" label="الخدمة" defaultValue={modal.data?.service} />
                                     {(user.role === 'admin' || user.role === 'superadmin') && (
                                         <div className="space-y-1">
-                                            <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest block mr-1">الفرع</label>
-                                            <select name="bId" defaultValue={modal.data?.branchId || 'all'} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold outline-none focus:border-gold-500">
+                                            <label className="text-[9px] font-black uppercase text-gray-500 tracking-widest block">الفرع</label>
+                                            <select name="bId" defaultValue={modal.data?.branchId || (selectedBranch !== 'all' ? selectedBranch : '')} className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl font-bold outline-none text-xs focus:border-gold-500">
                                                 {branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
                                             </select>
                                         </div>
@@ -613,9 +778,10 @@
                                 <>
                                     <Input name="amt" label="المبلغ" type="number" required />
                                     <Input name="dt" label="التاريخ" type="date" defaultValue={new Date().toISOString().split('T')[0]} required />
+                                    <Input name="payMethod" label="مكان الحفظ (اختياري)" placeholder="كاش، فيزا..." />
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest block mr-1">الفرع</label>
-                                        <select name="bId" defaultValue={user.branchId} disabled={user.role==='employee'} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold outline-none focus:border-gold-500">
+                                        <label className="text-[9px] font-black uppercase text-gray-500 tracking-widest block">الفرع</label>
+                                        <select name="bId" defaultValue={user.branchId} disabled={user.role==='employee'} className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl font-bold outline-none text-xs focus:border-gold-500">
                                             {branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
                                         </select>
                                     </div>
@@ -626,8 +792,8 @@
                                     <Input name="name" label="اسم الموظف" defaultValue={modal.data?.name} required />
                                     <Input name="code" label="كود الدخول (4 أرقام)" defaultValue={modal.data?.code} type="tel" maxLength="4" required />
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest block mr-1">الصلاحية</label>
-                                        <select name="bId" defaultValue={modal.data?.branchId || 'all'} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold outline-none focus:border-gold-500">
+                                        <label className="text-[9px] font-black uppercase text-gray-500 tracking-widest block">الصلاحية</label>
+                                        <select name="bId" defaultValue={modal.data?.branchId || 'all'} className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl font-bold outline-none text-xs focus:border-gold-500">
                                             <option value="all">مدير عام (جميع الفروع)</option>
                                             {branches.map(b=><option key={b.id} value={b.id}>موظف فرع: {b.name}</option>)}
                                         </select>
@@ -640,7 +806,7 @@
                                     <Input name="phone" label="تليفون الفرع" defaultValue={modal.data?.phone} required />
                                 </>
                             )}
-                            <button type="submit" className="w-full py-4 mt-2 bg-gold-500 text-white rounded-2xl font-black shadow-lg shadow-gold-500/30 hover:bg-gold-600 transition-colors">حفظ البيانات</button>
+                            <button type="submit" className="w-full py-3 mt-2 bg-gold-500 text-white rounded-xl font-black shadow-md hover:bg-gold-600">حفظ</button>
                         </form>
                     </div>
                 </div>
@@ -650,8 +816,8 @@
         function Input({ label, ...props }) {
             return (
                 <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mr-1">{label}</label>
-                    <input {...props} className="w-full bg-gray-50 border border-gray-100 focus:border-gold-500 p-4 rounded-2xl outline-none font-bold text-gray-800 text-sm transition-colors shadow-inner" />
+                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block">{label}</label>
+                    <input {...props} className="w-full bg-gray-50 border border-gray-100 focus:border-gold-500 p-3 rounded-xl outline-none font-bold text-gray-800 text-xs shadow-inner" />
                 </div>
             );
         }
@@ -661,3 +827,7 @@
     </script>
 </body>
 </html>
+
+
+
+
