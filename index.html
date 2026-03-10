@@ -131,18 +131,14 @@
                 
                 const unsub4 = db.collection('appointments').onSnapshot(s => {
                     const appsData = s.docs.map(x => ({id: x.id, ...x.data()}));
-                    
-                    // روبوت التنظيف: حذف أي موعد أقدم من شهر
                     const oneMonthAgo = new Date();
                     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
                     const cutoffDate = oneMonthAgo.toISOString().split('T')[0];
-                    
                     appsData.forEach(app => {
                         if (app.date && app.date < cutoffDate) {
                             db.collection('appointments').doc(app.id).delete().catch(()=>console.log("Cleanup Error"));
                         }
                     });
-                    
                     setData(d => ({...d, appointments: appsData.filter(a => !(a.date && a.date < cutoffDate))}));
                 });
 
@@ -202,7 +198,7 @@
                             {isAdminOrSuper && <SidebarItem icon={<IconBuilding/>} label="إدارة الفروع" active={activeTab === 'branches'} onClick={() => navigateTo('branches')} />}
                             <SidebarItem icon={<IconUsers/>} label="سجل المرضى" active={activeTab === 'patients'} onClick={() => navigateTo('patients')} />
                             <SidebarItem icon={<IconCalendar/>} label="المواعيد والتقويم" active={activeTab === 'appointments'} onClick={() => navigateTo('appointments')} />
-                            <SidebarItem icon={<IconClipboard/>} label="النواقص" active={activeTab === 'shortages'} onClick={() => navigateTo('shortages')} />
+                            <SidebarItem icon={<IconClipboard/>} label="النواقص والمخزن" active={activeTab === 'shortages'} onClick={() => navigateTo('shortages')} />
                             {isSuperAdmin && <SidebarItem icon={<IconWallet/>} label="توريدات الفروع" active={activeTab === 'finance'} onClick={() => navigateTo('finance')} />}
                             {isSuperAdmin && <SidebarItem icon={<IconCog/>} label="الموظفين" active={activeTab === 'staff'} onClick={() => navigateTo('staff')} />}
                         </nav>
@@ -214,7 +210,6 @@
                             <div className="flex items-center gap-1 sm:gap-3">
                                 <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-gray-700 hover:text-gold-500 rounded-lg lg:hidden"><IconMenu/></button>
                                 
-                                {/* أزرار التقدم والرجوع والرئيسية */}
                                 <div className="flex items-center bg-gray-50 rounded-full border border-gray-100 p-1">
                                     <button onClick={goBack} disabled={currentIndex === 0} className={`p-1.5 sm:p-2 rounded-full transition-colors flex items-center justify-center ${currentIndex > 0 ? 'text-gray-600 hover:text-gold-600 hover:bg-white shadow-sm' : 'text-gray-300 cursor-not-allowed'}`} title="رجوع">
                                         <IconBack />
@@ -248,22 +243,26 @@
                             {activeTab === 'branches' && <BranchesView branches={data.branches} onConfirm={setConfirmAction} onAdd={()=>setModal({type:'branch', mode:'add'})} onEdit={(d)=>setModal({type:'branch', mode:'edit', data:d})} />}
                             {activeTab === 'patients' && <PatientsView patients={filteredData.patients} branches={data.branches} currentUser={currentUser} branchId={currentUser.branchId} onConfirm={setConfirmAction} onAdd={()=>setModal({type:'patient', mode:'add'})} onEdit={(d)=>setModal({type:'patient', mode:'edit', data:d})} />}
                             {activeTab === 'appointments' && <AppointmentsView apps={filteredData.appointments} branches={data.branches} currentUser={currentUser} selectedBranch={selectedBranch} setConfirm={setConfirmAction} onAdd={()=>setModal({type:'app', mode:'add'})} onEdit={(d)=>setModal({type:'app', mode:'edit', data:d})} onNav={navigateTo}/>}
-                            {activeTab === 'finance' && isSuperAdmin && <FinanceView payments={filteredData.payments} branches={data.branches} currentUser={currentUser} setConfirm={setConfirmAction} onAdd={()=>setModal({type:'payment', mode:'add'})} />}
+                            
+                            {/* تم تعديل التوريدات لتكون أزرار التعديل والحذف مرئية دائماً على الموبايل */}
+                            {activeTab === 'finance' && isSuperAdmin && <FinanceView payments={filteredData.payments} branches={data.branches} currentUser={currentUser} setConfirm={setConfirmAction} onAdd={()=>setModal({type:'payment', mode:'add'})} onEdit={(d)=>setModal({type:'payment', mode:'edit', data:d})} />}
+                            
                             {activeTab === 'staff' && isSuperAdmin && <StaffView staff={data.staff} branches={data.branches} onConfirm={setConfirmAction} onAdd={()=>setModal({type:'staff', mode:'add'})} onEdit={(d)=>setModal({type:'staff', mode:'edit', data:d})} />}
-                            {activeTab === 'shortages' && <ShortagesView shortages={filteredData.shortages} branches={data.branches} currentUser={currentUser} selectedBranch={selectedBranch} onConfirm={setConfirmAction} />}
+                            
+                            {/* تم تمرير دالة onEdit لقسم النواقص لتفعيل زر التعديل */}
+                            {activeTab === 'shortages' && <ShortagesView shortages={filteredData.shortages} branches={data.branches} currentUser={currentUser} selectedBranch={selectedBranch} onConfirm={setConfirmAction} onEdit={(d)=>setModal({type:'shortage', mode:'edit', data:d})} />}
                         </div>
                     </div>
                 </div>
             );
         }
 
-        // --- شاشة الدخول مع ميزة تذكرني ---
+        // --- شاشة الدخول ---
         function LoginView({ onLogin, staffData }) {
             const [code, setCode] = useState(['', '', '', '']);
             const [rememberMe, setRememberMe] = useState(true);
             const inputRefs = useRef([]);
 
-            // ميزة التحقق من الذاكرة (Auto-login)
             useEffect(() => {
                 if (staffData && staffData.length > 0) {
                     const savedCode = localStorage.getItem('newEraSavedCode');
@@ -347,7 +346,114 @@
             );
         }
 
-        // --- المواعيد (تعديلات الحجم والتجميع والفصل) ---
+        // --- قسم النواقص (مع زرار التعديل الجديد) ---
+        function ShortagesView({ shortages, branches, currentUser, selectedBranch, onConfirm, onEdit }) {
+            const [itemName, setItemName] = useState('');
+            const [quantity, setQuantity] = useState('');
+            
+            const [branchId, setBranchId] = useState(currentUser.role === 'employee' ? currentUser.branchId : (selectedBranch === 'all' ? 'store' : selectedBranch));
+
+            const sortedShortages = useMemo(() => {
+                return [...shortages].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+            }, [shortages]);
+
+            const groupedShortages = useMemo(() => {
+                if (selectedBranch !== 'all') return { [selectedBranch]: sortedShortages };
+                const groups = {};
+                sortedShortages.forEach(s => {
+                    const bId = s.branchId || 'unknown';
+                    if (!groups[bId]) groups[bId] = [];
+                    groups[bId].push(s);
+                });
+                return groups;
+            }, [sortedShortages, selectedBranch]);
+
+            const handleAdd = (e) => {
+                e.preventDefault();
+                if (!itemName || !quantity) return;
+                db.collection('shortages').add({ itemName, quantity, branchId, requestedBy: currentUser.name, timestamp: new Date().toISOString() });
+                setItemName(''); setQuantity('');
+            };
+
+            return (
+                <div className="space-y-4 w-full animate-fade-in">
+                    <h3 className="text-lg font-black text-gray-800">النواقص والمخزن</h3>
+                    <div className="bg-white p-4 rounded-[20px] border border-gray-100 shadow-sm">
+                        <form onSubmit={handleAdd} className="flex flex-col md:flex-row gap-3 items-end">
+                            <div className="flex-1 w-full">
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">اسم الصنف</label>
+                                <input type="text" required value={itemName} onChange={e=>setItemName(e.target.value)} placeholder="مثال: كمامات..." className="w-full bg-gray-50 border border-gray-100 focus:border-gold-500 p-2.5 rounded-lg outline-none font-bold text-gray-800 text-xs" />
+                            </div>
+                            <div className="w-full md:w-28">
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">الكمية</label>
+                                <input type="text" required value={quantity} onChange={e=>setQuantity(e.target.value)} placeholder="مثال: 5" className="w-full bg-gray-50 border border-gray-100 focus:border-gold-500 p-2.5 rounded-lg outline-none font-bold text-gray-800 text-xs text-center" />
+                            </div>
+                            
+                            {(currentUser.role === 'admin' || currentUser.role === 'superadmin') && (
+                                <div className="w-full md:w-40">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">الفرع / المخزن</label>
+                                    <select value={branchId} onChange={e=>setBranchId(e.target.value)} className="w-full bg-gray-50 border border-gray-100 focus:border-gold-500 p-2.5 rounded-lg outline-none font-bold text-gray-800 text-xs cursor-pointer">
+                                        <option value="store">المخزن (الرئيسي)</option>
+                                        {branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            <button type="submit" className="w-full md:w-auto bg-gold-500 text-white px-6 py-2.5 rounded-lg font-black text-xs shadow-md hover:bg-gold-600 transition-colors">أضف +</button>
+                        </form>
+                    </div>
+
+                    <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-3 sm:p-4 space-y-4">
+                        {Object.keys(groupedShortages).length === 0 ? (
+                            <div className="p-4 text-center text-gray-400 font-bold text-xs">لا توجد نواقص مسجلة.</div>
+                        ) : (
+                            Object.entries(groupedShortages).map(([bId, bShortages]) => {
+                                if(bShortages.length === 0) return null;
+                                const bName = bId === 'store' ? 'المخزن الرئيسي' : (branches.find(b=>b.id===bId)?.name || 'غير معروف');
+                                return (
+                                    <div key={bId} className="mb-2">
+                                        <div className="flex items-center gap-3 mb-2 mt-1">
+                                            <span className="text-[10px] font-black bg-gradient-to-r from-gold-500 to-gold-600 text-white px-3 py-1 rounded-lg shadow-sm border border-gold-400">{bName}</span>
+                                            <div className="h-px bg-gradient-to-l from-gold-200 to-transparent flex-1 rounded-full"></div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {bShortages.map(item => {
+                                                const d = new Date(item.timestamp).toLocaleDateString('en-GB');
+                                                return (
+                                                    <div key={item.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-gray-50 rounded-xl border border-gray-100 gap-3">
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-black text-gray-800 text-xs sm:text-sm">{item.itemName}</span>
+                                                                <span className="bg-gold-100 text-gold-700 px-1.5 py-0.5 rounded-md text-[10px] font-bold">{item.quantity}</span>
+                                                            </div>
+                                                            <div className="text-[9px] text-gray-500 flex flex-wrap gap-2 mt-1 items-center">
+                                                                <span className="flex items-center gap-0.5"><IconUserCircle/> {item.requestedBy}</span>
+                                                                <span dir="ltr" className="text-gray-400 font-mono">{d}</span>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* إضافة زر التعديل للنواقص */}
+                                                        <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                                                            <button onClick={() => onEdit(item)} className="bg-white text-gold-500 hover:bg-gold-500 hover:text-white p-1.5 rounded-lg border border-gray-200 transition-colors">
+                                                                <IconEdit />
+                                                            </button>
+                                                            <button onClick={() => onConfirm({ msg: 'هل تم توفير وشراء هذا الصنف؟', onConfirm: () => { db.collection('shortages').doc(item.id).delete(); onConfirm(null); }})} className="flex-1 sm:flex-none bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white px-3 py-1.5 rounded-lg font-bold text-[10px] border border-emerald-100 transition-colors text-center">
+                                                                ✅ تم الشراء
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                )
+                            })
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        // --- المواعيد ---
         function AppointmentsView({ apps, branches, currentUser, selectedBranch, setConfirm, onAdd, onEdit, onNav }) {
             const [viewMode, setViewMode] = useState('daily'); 
             const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -365,7 +471,6 @@
 
             const dailyApps = useMemo(() => filteredApps.filter(a => a.date === selectedDate), [filteredApps, selectedDate]);
 
-            // تجميع المواعيد حسب الفرع في العرض اليومي (لو مختار كل الفروع)
             const groupedByBranchDaily = useMemo(() => {
                 if (selectedBranch !== 'all') return { [selectedBranch]: dailyApps };
                 const groups = {};
@@ -377,7 +482,6 @@
                 return groups;
             }, [dailyApps, selectedBranch]);
 
-            // تحضير الـ 7 أيام القادمة للعرض الأسبوعي الجديد
             const weeklyDays = useMemo(() => {
                 const days = [];
                 for(let i=0; i<7; i++) {
@@ -391,7 +495,6 @@
                 return days;
             }, [filteredApps, selectedDate]);
 
-            // إرجاع التقويم الشهري بناءً على طلبك
             const renderCalendar = () => {
                 const date = new Date(selectedDate);
                 const year = date.getFullYear(); const month = date.getMonth();
@@ -438,8 +541,8 @@
                         </div>
                     </div>
                     <div className="flex gap-1 shrink-0 self-end sm:self-auto">
-                        <button onClick={()=>onEdit(a)} className="p-1.5 bg-gray-50 text-gold-500 rounded-lg hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
-                        <button onClick={()=>setConfirm({msg:'إلغاء الموعد نهائياً؟', onConfirm:()=>{db.collection('appointments').doc(a.id).delete(); setConfirm(null);}})} className="p-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
+                        <button onClick={()=>onEdit(a)} className="p-1.5 bg-white border border-gray-200 text-gold-500 rounded-lg hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
+                        <button onClick={()=>setConfirm({msg:'إلغاء الموعد نهائياً؟', onConfirm:()=>{db.collection('appointments').doc(a.id).delete(); setConfirm(null);}})} className="p-1.5 bg-white border border-gray-200 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
                     </div>
                 </div>
             );
@@ -451,14 +554,12 @@
                         <div className="flex bg-gray-100 p-1 rounded-xl w-full lg:w-auto">
                             <button onClick={() => setViewMode('daily')} className={`flex-1 px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode==='daily' ? 'bg-white shadow text-gold-600' : 'text-gray-500'}`}>يومي</button>
                             <button onClick={() => setViewMode('weekly')} className={`flex-1 px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode==='weekly' ? 'bg-white shadow text-gold-600' : 'text-gray-500'}`}>أسبوعي</button>
-                            {/* إضافة زر الشهري */}
                             <button onClick={() => setViewMode('monthly')} className={`flex-1 px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode==='monthly' ? 'bg-white shadow text-gold-600' : 'text-gray-500'}`}>شهري</button>
                         </div>
                         <input type="date" value={selectedDate} onChange={(e)=>setSelectedDate(e.target.value)} className="w-full lg:w-auto bg-white border border-gray-200 text-xs font-bold p-2 rounded-xl outline-none focus:border-gold-500"/>
                         <button onClick={onAdd} className="w-full lg:w-auto bg-gold-500 text-white px-5 py-2 rounded-xl text-xs font-black shadow-md hover:bg-gold-600 transition-colors">+ حجز</button>
                     </div>
 
-                    {/* العرض اليومي - مقسم بالفروع */}
                     {viewMode === 'daily' && (
                         <div className="animate-slide-up">
                             {Object.keys(groupedByBranchDaily).length === 0 ? (
@@ -469,7 +570,6 @@
                                     const bName = branches.find(b=>b.id===bId)?.name || 'العيادة';
                                     return (
                                         <div key={bId} className="mb-4">
-                                            {/* إظهار اسم الفرع كفاصل دهبي ظاهر جداً */}
                                             {selectedBranch === 'all' && (
                                                 <div className="flex items-center gap-3 mb-4 mt-2">
                                                     <span className="text-xs font-black bg-gradient-to-r from-gold-500 to-gold-600 text-white px-4 py-1.5 rounded-lg shadow-md border border-gold-400">فرع {bName}</span>
@@ -486,7 +586,6 @@
                         </div>
                     )}
 
-                    {/* العرض الأسبوعي الجديد - جدول أنيق */}
                     {viewMode === 'weekly' && (
                         <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm overflow-hidden animate-slide-up">
                             <div className="divide-y divide-gray-50">
@@ -520,13 +619,11 @@
                         </div>
                     )}
 
-                    {/* العرض الشهري المُسترجع */}
                     {viewMode === 'monthly' && renderCalendar()}
                 </div>
             );
         }
 
-        // --- الفروع (تصغير الكروت) ---
         function BranchesView({ branches, onConfirm, onAdd, onEdit }) {
             return (
                 <div className="space-y-4 w-full animate-fade-in">
@@ -534,108 +631,15 @@
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {branches.map(b => (
                             <div key={b.id} className="bg-white p-4 rounded-[20px] border border-gray-100 shadow-sm relative group">
-                                <div className="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => onEdit(b)} className="p-1.5 text-gold-500 bg-gold-50 rounded-lg hover:bg-gold-500 hover:text-white"><IconEdit/></button>
-                                    <button onClick={() => onConfirm({msg:'حذف الفرع؟', onConfirm:()=>{db.collection('branches').doc(b.id).delete(); onConfirm(null);}})} className="p-1.5 text-red-500 bg-red-50 rounded-lg hover:bg-red-500 hover:text-white"><IconTrash/></button>
+                                {/* زراير التعديل للفروع دايما ظاهرة للموبايل */}
+                                <div className="absolute top-2 left-2 flex gap-1">
+                                    <button onClick={() => onEdit(b)} className="p-1.5 text-gold-500 bg-white border border-gray-200 rounded-lg hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
+                                    <button onClick={() => onConfirm({msg:'حذف الفرع؟', onConfirm:()=>{db.collection('branches').doc(b.id).delete(); onConfirm(null);}})} className="p-1.5 text-red-500 bg-white border border-gray-200 rounded-lg hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
                                 </div>
                                 <div className="text-gold-500 mb-2 bg-gray-50 w-10 h-10 rounded-xl flex items-center justify-center"><IconBuilding/></div>
                                 <h4 className="text-sm font-black text-gray-800 mb-0.5">{b.name}</h4><p className="text-[10px] font-bold text-gray-500">{b.phone}</p>
                             </div>
                         ))}
-                    </div>
-                </div>
-            );
-        }
-
-        // --- الموظفين (تصغير الجدول) ---
-        function StaffView({ staff, branches, onConfirm, onAdd, onEdit }) {
-            return (
-                <div className="space-y-4 w-full animate-fade-in">
-                    <div className="flex justify-between items-center"><h3 className="text-lg font-black text-gray-800">الموظفين</h3><button onClick={onAdd} className="bg-gold-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-gold-600">+ موظف جديد</button></div>
-                    <div className="bg-white rounded-[20px] border border-gray-100 overflow-hidden shadow-sm w-full overflow-x-auto">
-                        <table className="w-full text-right text-[10px] min-w-[350px]">
-                            <thead className="bg-gray-50 text-gray-500 border-b"><tr><th className="p-2">الاسم</th><th className="p-2 text-center">الكود</th><th className="p-2">الفرع</th><th className="p-2 text-center">أوامر</th></tr></thead>
-                            <tbody className="divide-y divide-gray-100">{staff.map(s => (
-                                <tr key={s.id} className="hover:bg-gray-50/50">
-                                    <td className="p-2 font-bold text-gray-800">{s.name}</td>
-                                    <td className="p-2 text-center font-mono font-black text-gold-600 text-xs tracking-widest">{s.code}</td>
-                                    <td className="p-2 text-gray-500">{s.branchId === 'all' ? 'مدير عام' : branches.find(b=>b.id===s.branchId)?.name}</td>
-                                    <td className="p-2 flex justify-center gap-1">
-                                        <button onClick={() => onEdit(s)} className="p-1 text-gold-500 bg-gold-50 rounded hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
-                                        <button onClick={() => onConfirm({msg:'حذف الموظف نهائياً؟', onConfirm:()=>{db.collection('staff_members').doc(s.id).delete(); onConfirm(null);}})} className="p-1 text-red-500 bg-red-50 rounded hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
-                                    </td>
-                                </tr>
-                            ))}</tbody>
-                        </table>
-                    </div>
-                </div>
-            );
-        }
-
-        // --- باقي المكونات زي ما هي بتنسيق متناسق ---
-        function ShortagesView({ shortages, branches, currentUser, selectedBranch, onConfirm }) {
-            const [itemName, setItemName] = useState('');
-            const [quantity, setQuantity] = useState('');
-            const [branchId, setBranchId] = useState(currentUser.role === 'employee' ? currentUser.branchId : (selectedBranch === 'all' ? (branches[0]?.id || '') : selectedBranch));
-
-            const sortedShortages = useMemo(() => {
-                return [...shortages].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-            }, [shortages]);
-
-            const handleAdd = (e) => {
-                e.preventDefault();
-                if (!itemName || !quantity) return;
-                db.collection('shortages').add({ itemName, quantity, branchId, requestedBy: currentUser.name, timestamp: new Date().toISOString() });
-                setItemName(''); setQuantity('');
-            };
-
-            return (
-                <div className="space-y-4 w-full animate-fade-in">
-                    <h3 className="text-lg font-black text-gray-800">النواقص</h3>
-                    <div className="bg-white p-4 rounded-[20px] border border-gray-100 shadow-sm">
-                        <form onSubmit={handleAdd} className="flex flex-col md:flex-row gap-3 items-end">
-                            <div className="flex-1 w-full">
-                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">اسم الصنف</label>
-                                <input type="text" required value={itemName} onChange={e=>setItemName(e.target.value)} placeholder="مثال: كمامات..." className="w-full bg-gray-50 border border-gray-100 focus:border-gold-500 p-2.5 rounded-lg outline-none font-bold text-gray-800 text-xs" />
-                            </div>
-                            <div className="w-full md:w-28">
-                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">الكمية</label>
-                                <input type="text" required value={quantity} onChange={e=>setQuantity(e.target.value)} placeholder="مثال: 5" className="w-full bg-gray-50 border border-gray-100 focus:border-gold-500 p-2.5 rounded-lg outline-none font-bold text-gray-800 text-xs text-center" />
-                            </div>
-                            {(currentUser.role === 'admin' || currentUser.role === 'superadmin') && (
-                                <div className="w-full md:w-40">
-                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">الفرع</label>
-                                    <select value={branchId} onChange={e=>setBranchId(e.target.value)} className="w-full bg-gray-50 border border-gray-100 focus:border-gold-500 p-2.5 rounded-lg outline-none font-bold text-gray-800 text-xs">
-                                        {branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
-                                    </select>
-                                </div>
-                            )}
-                            <button type="submit" className="w-full md:w-auto bg-gold-500 text-white px-6 py-2.5 rounded-lg font-black text-xs shadow-md hover:bg-gold-600">أضف +</button>
-                        </form>
-                    </div>
-
-                    <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-3 space-y-2">
-                        {sortedShortages.length === 0 ? (
-                            <div className="p-4 text-center text-gray-400 font-bold text-xs">لا توجد نواقص مسجلة.</div>
-                        ) : (
-                            sortedShortages.map(item => {
-                                const bName = branches.find(b => b.id === item.branchId)?.name || '';
-                                return (
-                                    <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-black text-gray-800 text-xs">{item.itemName}</span>
-                                                <span className="bg-gold-100 text-gold-700 px-1.5 py-0.5 rounded text-[9px] font-bold">{item.quantity}</span>
-                                            </div>
-                                            <div className="text-[9px] text-gray-500 flex gap-1 mt-1">
-                                                <span className="font-bold text-gold-600">{bName}</span> • <span>{item.requestedBy}</span>
-                                            </div>
-                                        </div>
-                                        <button onClick={() => onConfirm({ msg: 'تم الشراء والحذف؟', onConfirm: () => { db.collection('shortages').doc(item.id).delete(); onConfirm(null); }})} className="bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white px-3 py-1.5 rounded-lg font-bold text-[10px] border border-emerald-100 transition-colors">✅ تم الشراء</button>
-                                    </div>
-                                )
-                            })
-                        )}
                     </div>
                 </div>
             );
@@ -654,8 +658,8 @@
                                     <td className="p-4"><div className="font-bold text-gray-800 mb-0.5">{p.name}</div>{(currentUser.role === 'admin' || currentUser.role === 'superadmin') && p.recordedBy && <div className="text-[8px] text-gray-400">بواسطة: {p.recordedBy}</div>}</td>
                                     <td className="p-4 text-gray-500 font-mono tracking-wider" dir="ltr">{p.phone}</td>
                                     <td className="p-4 flex justify-center gap-1">
-                                        <button onClick={() => onEdit(p)} className="p-1.5 text-gold-500 bg-gold-50 rounded-lg hover:bg-gold-500 hover:text-white"><IconEdit/></button>
-                                        <button onClick={() => onConfirm({msg:'حذف المريض نهائياً؟', onConfirm:()=>{db.collection('patients').doc(p.id).delete(); onConfirm(null);}})} className="p-1.5 text-red-500 bg-red-50 rounded-lg hover:bg-red-500 hover:text-white"><IconTrash/></button>
+                                        <button onClick={() => onEdit(p)} className="p-1.5 text-gold-500 bg-white border border-gray-200 rounded-lg hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
+                                        <button onClick={() => onConfirm({msg:'حذف المريض نهائياً؟', onConfirm:()=>{db.collection('patients').doc(p.id).delete(); onConfirm(null);}})} className="p-1.5 text-red-500 bg-white border border-gray-200 rounded-lg hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
                                     </td>
                                 </tr>
                             ))}</tbody>
@@ -665,7 +669,8 @@
             );
         }
 
-        function FinanceView({ payments, branches, currentUser, onConfirm, onAdd }) {
+        // --- المالية (زراير التعديل والحذف ظاهرة دايماً) ---
+        function FinanceView({ payments, branches, currentUser, onConfirm, onAdd, onEdit }) {
             const total = payments.reduce((a,b)=>a+Number(b.amount||0),0);
             return (
                 <div className="space-y-4 w-full animate-fade-in">
@@ -676,18 +681,46 @@
                     </div>
                     <div className="bg-white p-3 rounded-[20px] border border-gray-100 shadow-sm space-y-2">
                         {payments.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(p=>(
-                            <div key={p.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-xl relative group hover:bg-gray-100 transition-colors">
-                                <button onClick={() => onConfirm({msg:'حذف التوريد؟', onConfirm:()=>{db.collection('payments').doc(p.id).delete(); onConfirm(null);}})} className="absolute left-2 top-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"><IconX/></button>
-                                <div>
+                            <div key={p.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-xl relative hover:bg-gray-100 transition-colors">
+                                {/* الزراير ظاهرة دايماً بدون Hover للموبايل */}
+                                <div className="absolute left-2 top-2 flex gap-1">
+                                    <button onClick={() => onEdit(p)} className="p-1 text-gold-500 bg-white border border-gray-200 rounded-lg hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
+                                    <button onClick={() => onConfirm({msg:'حذف التوريد؟', onConfirm:()=>{db.collection('payments').doc(p.id).delete(); onConfirm(null);}})} className="p-1 text-red-500 bg-white border border-gray-200 rounded-lg hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
+                                </div>
+                                <div className="mt-2">
                                     <div className="flex items-center gap-2 mb-1">
                                         <p className="font-black text-xs text-gray-800">فرع {branches.find(b=>b.id===p.branchId)?.name}</p>
                                         {p.paymentMethod && <span className="bg-emerald-100 text-emerald-700 text-[8px] px-1.5 py-0.5 rounded font-bold border border-emerald-200">{p.paymentMethod}</span>}
                                     </div>
                                     <p className="text-[9px] text-gray-500 font-bold">{p.date}</p>
                                 </div>
-                                <div className="text-emerald-500 font-black text-base">+{p.amount} ج</div>
+                                <div className="text-emerald-500 font-black text-base mr-12">+{p.amount} ج</div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            );
+        }
+
+        function StaffView({ staff, branches, onConfirm, onAdd, onEdit }) {
+            return (
+                <div className="space-y-4 w-full animate-fade-in">
+                    <div className="flex justify-between items-center"><h3 className="text-lg font-black text-gray-800">الموظفين</h3><button onClick={onAdd} className="bg-gold-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-gold-600">+ موظف جديد</button></div>
+                    <div className="bg-white rounded-[20px] border border-gray-100 overflow-hidden shadow-sm w-full overflow-x-auto">
+                        <table className="w-full text-right text-[10px] min-w-[350px]">
+                            <thead className="bg-gray-50 text-gray-500 border-b"><tr><th className="p-2">الاسم</th><th className="p-2 text-center">الكود</th><th className="p-2">الفرع</th><th className="p-2 text-center">أوامر</th></tr></thead>
+                            <tbody className="divide-y divide-gray-100">{staff.map(s => (
+                                <tr key={s.id} className="hover:bg-gray-50/50">
+                                    <td className="p-2 font-bold text-gray-800">{s.name}</td>
+                                    <td className="p-2 text-center font-mono font-black text-gold-600 text-xs tracking-widest">{s.code}</td>
+                                    <td className="p-2 text-gray-500">{s.branchId === 'all' ? 'مدير عام' : branches.find(b=>b.id===s.branchId)?.name}</td>
+                                    <td className="p-2 flex justify-center gap-1">
+                                        <button onClick={() => onEdit(s)} className="p-1 text-gold-500 bg-white border border-gray-200 rounded hover:bg-gold-500 hover:text-white transition-colors"><IconEdit/></button>
+                                        <button onClick={() => onConfirm({msg:'حذف الموظف نهائياً؟', onConfirm:()=>{db.collection('staff_members').doc(s.id).delete(); onConfirm(null);}})} className="p-1 text-red-500 bg-white border border-gray-200 rounded hover:bg-red-500 hover:text-white transition-colors"><IconTrash/></button>
+                                    </td>
+                                </tr>
+                            ))}</tbody>
+                        </table>
                     </div>
                 </div>
             );
@@ -724,6 +757,10 @@
                     col='payments'; d={amount:f.amt.value, date:f.dt.value, branchId:f.bId.value, receivedBy:user.name, paymentMethod: f.payMethod.value};
                 } else if(modal.type==='branch') {
                     col='branches'; d={name:f.name.value, phone:f.phone.value};
+                } else if(modal.type==='shortage') {
+                    // منطق حفظ وتعديل النواقص
+                    col='shortages'; d={itemName:f.itemName.value, quantity:f.quantity.value, branchId:f.bId.value};
+                    if(modal.mode !== 'edit') { d.requestedBy = user.name; d.timestamp = new Date().toISOString(); }
                 }
 
                 if(modal.mode==='edit') db.collection(col).doc(modal.data.id).update(d);
@@ -733,10 +770,10 @@
 
             return (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] flex items-end sm:items-center justify-center p-4 animate-fade-in">
-                    <div className="bg-white w-full max-w-md rounded-[20px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-slide-up">
+                    <div className="bg-white w-full max-w-md rounded-[20px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-slide-up border border-gray-100">
                         <div className="p-4 border-b flex justify-between items-center bg-gray-50/50 shrink-0">
                             <h3 className="font-black text-gray-800 text-sm">إضافة / تعديل</h3>
-                            <button type="button" onClick={onClose} className="p-1.5 text-gray-400 bg-white rounded-full shadow-sm hover:text-gold-500"><IconX/></button>
+                            <button type="button" onClick={onClose} className="p-1.5 text-gray-400 bg-white rounded-full shadow-sm hover:text-gold-500 transition-colors"><IconX/></button>
                         </div>
                         <form onSubmit={save} className="p-5 space-y-3 overflow-y-auto custom-scrollbar">
                             {modal.type==='app' && (
@@ -776,15 +813,34 @@
                             )}
                             {modal.type==='payment' && (
                                 <>
-                                    <Input name="amt" label="المبلغ" type="number" required />
-                                    <Input name="dt" label="التاريخ" type="date" defaultValue={new Date().toISOString().split('T')[0]} required />
-                                    <Input name="payMethod" label="مكان الحفظ (اختياري)" placeholder="كاش، فيزا..." />
+                                    <Input name="amt" label="المبلغ" type="number" defaultValue={modal.data?.amount} required />
+                                    <Input name="dt" label="التاريخ" type="date" defaultValue={modal.data?.date || new Date().toISOString().split('T')[0]} required />
+                                    <Input name="payMethod" label="مكان الحفظ (اختياري)" defaultValue={modal.data?.paymentMethod} placeholder="كاش، فيزا..." />
                                     <div className="space-y-1">
                                         <label className="text-[9px] font-black uppercase text-gray-500 tracking-widest block">الفرع</label>
-                                        <select name="bId" defaultValue={user.branchId} disabled={user.role==='employee'} className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl font-bold outline-none text-xs focus:border-gold-500">
+                                        <select name="bId" defaultValue={modal.data?.branchId || user.branchId} disabled={user.role==='employee'} className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl font-bold outline-none text-xs focus:border-gold-500">
                                             {branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
                                         </select>
                                     </div>
+                                </>
+                            )}
+                            {/* تعديل النواقص */}
+                            {modal.type==='shortage' && (
+                                <>
+                                    <Input name="itemName" label="اسم الصنف" defaultValue={modal.data?.itemName} required />
+                                    <Input name="quantity" label="الكمية" defaultValue={modal.data?.quantity} required />
+                                    {(user.role === 'admin' || user.role === 'superadmin') && (
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black uppercase text-gray-500 tracking-widest block">الفرع / المخزن</label>
+                                            <select name="bId" defaultValue={modal.data?.branchId} className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl font-bold outline-none text-xs focus:border-gold-500">
+                                                <option value="store">المخزن (الرئيسي)</option>
+                                                {branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
+                                            </select>
+                                        </div>
+                                    )}
+                                    {user.role === 'employee' && (
+                                        <input type="hidden" name="bId" value={modal.data?.branchId || user.branchId} />
+                                    )}
                                 </>
                             )}
                             {modal.type==='staff' && (
@@ -806,7 +862,7 @@
                                     <Input name="phone" label="تليفون الفرع" defaultValue={modal.data?.phone} required />
                                 </>
                             )}
-                            <button type="submit" className="w-full py-3 mt-2 bg-gold-500 text-white rounded-xl font-black shadow-md hover:bg-gold-600">حفظ</button>
+                            <button type="submit" className="w-full py-3 mt-2 bg-gold-500 text-white rounded-xl font-black shadow-md hover:bg-gold-600 transition-colors">حفظ التغييرات</button>
                         </form>
                     </div>
                 </div>
@@ -817,7 +873,7 @@
             return (
                 <div className="space-y-1">
                     <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block">{label}</label>
-                    <input {...props} className="w-full bg-gray-50 border border-gray-100 focus:border-gold-500 p-3 rounded-xl outline-none font-bold text-gray-800 text-xs shadow-inner" />
+                    <input {...props} className="w-full bg-gray-50 border border-gray-100 focus:border-gold-500 p-3 rounded-xl outline-none font-bold text-gray-800 text-xs shadow-inner transition-colors" />
                 </div>
             );
         }
@@ -827,7 +883,3 @@
     </script>
 </body>
 </html>
-
-
-
-
